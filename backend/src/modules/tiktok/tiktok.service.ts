@@ -28,23 +28,30 @@ export class TikTokService {
     const clientKey = process.env.TIKTOK_CLIENT_KEY;
     const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
     const redirectUri = process.env.TIKTOK_REDIRECT_URI;
-    if (!clientKey || !clientSecret || !redirectUri) throw new BadRequestException('TikTok no configurado');
+    if (!clientKey || !clientSecret || !redirectUri)
+      throw new BadRequestException('TikTok no configurado');
 
     // Exchange code for token
-    const tokenRes = await axios.post('https://open.tiktokapis.com/v2/oauth/token/', {
-      client_key: clientKey,
-      client_secret: clientSecret,
-      code,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri,
-    }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const tokenRes = await axios.post(
+      'https://open.tiktokapis.com/v2/oauth/token/',
+      {
+        client_key: clientKey,
+        client_secret: clientSecret,
+        code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      },
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10_000 },
+    );
 
-    const { access_token, refresh_token, expires_in, open_id } = tokenRes.data;
+    const { access_token, refresh_token, expires_in, open_id } = tokenRes.data ?? {};
+    if (!access_token || !open_id) throw new BadRequestException('TikTok token exchange failed');
 
     // Get user info
     const userRes = await axios.get('https://open.tiktokapis.com/v2/user/info/', {
       headers: { Authorization: `Bearer ${access_token}` },
       params: { fields: 'open_id,display_name' },
+      timeout: 10_000,
     });
 
     const username: string = userRes.data.data?.user?.display_name ?? 'TikTok User';
@@ -52,8 +59,21 @@ export class TikTokService {
 
     return this.prisma.tikTokAccount.upsert({
       where: { userId },
-      create: { userId, openId: open_id, username, accessToken: access_token, refreshToken: refresh_token, tokenExpires },
-      update: { openId: open_id, username, accessToken: access_token, refreshToken: refresh_token, tokenExpires },
+      create: {
+        userId,
+        openId: open_id,
+        username,
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        tokenExpires,
+      },
+      update: {
+        openId: open_id,
+        username,
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        tokenExpires,
+      },
     });
   }
 
@@ -76,13 +96,28 @@ export class TikTokService {
     const initRes = await axios.post(
       'https://open.tiktokapis.com/v2/post/publish/video/init/',
       {
-        post_info: { title: title.slice(0, 150), privacy_level: 'PUBLIC_TO_EVERYONE', disable_duet: false, disable_stitch: false, disable_comment: false },
-        source_info: { source: 'FILE_UPLOAD', video_size: fileSize, chunk_size: fileSize, total_chunk_count: 1 },
+        post_info: {
+          title: title.slice(0, 150),
+          privacy_level: 'PUBLIC_TO_EVERYONE',
+          disable_duet: false,
+          disable_stitch: false,
+          disable_comment: false,
+        },
+        source_info: {
+          source: 'FILE_UPLOAD',
+          video_size: fileSize,
+          chunk_size: fileSize,
+          total_chunk_count: 1,
+        },
       },
-      { headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' } },
+      {
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        timeout: 10_000,
+      },
     );
 
-    const { publish_id, upload_url } = initRes.data.data;
+    const { publish_id, upload_url } = initRes.data?.data ?? {};
+    if (!publish_id || !upload_url) throw new Error('TikTok upload init failed');
 
     // Step 2: Upload file
     await axios.put(upload_url, createReadStream(videoPath), {
@@ -91,9 +126,10 @@ export class TikTokService {
         'Content-Range': `bytes 0-${fileSize - 1}/${fileSize}`,
         'Content-Length': fileSize,
       },
+      timeout: 120_000,
     });
 
     this.logger.log(`TikTok upload complete, publish_id: ${publish_id}`);
-    return publish_id as string;
+    return publish_id;
   }
 }

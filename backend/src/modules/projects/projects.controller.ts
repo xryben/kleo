@@ -1,7 +1,16 @@
 import {
-  Controller, Get, Post, Delete, Param, Body,
-  UseGuards, Request, UseInterceptors, UploadedFile,
-  BadRequestException, ForbiddenException,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -49,10 +58,18 @@ export class ProjectsController {
           cb(null, `${unique}${extname(file.originalname)}`);
         },
       }),
-      limits: { fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB || '500')) * 1024 * 1024 },
+      limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '500') * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
-        const allowed = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
-        if (allowed.includes(extname(file.originalname).toLowerCase())) {
+        const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+        const allowedMimes = [
+          'video/mp4',
+          'video/quicktime',
+          'video/x-msvideo',
+          'video/x-matroska',
+          'video/webm',
+        ];
+        const ext = extname(file.originalname).toLowerCase();
+        if (allowedExtensions.includes(ext) && allowedMimes.includes(file.mimetype)) {
           cb(null, true);
         } else {
           cb(new BadRequestException('Formato de video no soportado'), false);

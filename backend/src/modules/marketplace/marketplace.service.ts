@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma.service';
-import { CampaignStatus } from '@prisma/client';
+import { CampaignStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class MarketplaceService {
@@ -16,11 +16,11 @@ export class MarketplaceService {
     const take = Math.min(filters?.limit || 20, 100);
     const skip = ((filters?.page || 1) - 1) * take;
 
-    const cpmFilter: any = {};
+    const cpmFilter: Prisma.IntFilter<'Campaign'> = {};
     if (filters?.minCpm) cpmFilter.gte = filters.minCpm;
     if (filters?.maxCpm) cpmFilter.lte = filters.maxCpm;
 
-    const campaignFilter: any = { status: CampaignStatus.ACTIVE };
+    const campaignFilter: Prisma.CampaignWhereInput = { status: CampaignStatus.ACTIVE };
     if (Object.keys(cpmFilter).length > 0) {
       campaignFilter.cpmCents = cpmFilter;
     }

@@ -83,7 +83,10 @@ export class ProcessingService {
         if (!['http:', 'https:'].includes(parsed.protocol)) {
           throw new Error('Invalid URL protocol');
         }
-      } catch {
+      } catch (err) {
+        this.logger.warn(
+          `Invalid sourceUrl "${project.sourceUrl}": ${err instanceof Error ? err.message : err}`,
+        );
         throw new Error('sourceUrl inválida');
       }
       this.logger.log(`Downloading YouTube: ${project.sourceUrl}`);
@@ -181,10 +184,14 @@ Responde SOLO con JSON válido, sin markdown:
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
       },
-      { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' } },
+      {
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        timeout: 30_000,
+      },
     );
 
-    const content: string = response.data.choices[0].message.content;
+    const content: string | undefined = response.data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('Empty response from AI model');
     const cleaned = content
       .replace(/```json\n?/g, '')
       .replace(/```\n?/g, '')
@@ -268,7 +275,11 @@ Responde SOLO con JSON válido, sin markdown:
       if (existsSync(rawClipPath)) {
         try {
           unlinkSync(rawClipPath);
-        } catch {}
+        } catch (err) {
+          this.logger.warn(
+            `Failed to remove raw clip ${rawClipPath}: ${err instanceof Error ? err.message : err}`,
+          );
+        }
       }
 
       // Thumbnail

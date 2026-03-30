@@ -26,31 +26,43 @@ export class InstagramService {
     const appId = process.env.INSTAGRAM_APP_ID;
     const appSecret = process.env.INSTAGRAM_APP_SECRET;
     const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
-    if (!appId || !appSecret || !redirectUri) throw new BadRequestException('Instagram no configurado');
+    if (!appId || !appSecret || !redirectUri)
+      throw new BadRequestException('Instagram no configurado');
 
     // Exchange code for short-lived token
-    const tokenRes = await axios.post('https://api.instagram.com/oauth/access_token', {
-      client_id: appId,
-      client_secret: appSecret,
-      grant_type: 'authorization_code',
-      redirect_uri: redirectUri,
-      code,
-    }, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    const tokenRes = await axios.post(
+      'https://api.instagram.com/oauth/access_token',
+      {
+        client_id: appId,
+        client_secret: appSecret,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+        code,
+      },
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10_000 },
+    );
 
-    const shortToken: string = tokenRes.data.access_token;
-    const igUserId: string = tokenRes.data.user_id;
+    const shortToken: string | undefined = tokenRes.data?.access_token;
+    const igUserId: string | undefined = tokenRes.data?.user_id;
+    if (!shortToken || !igUserId) throw new BadRequestException('Instagram token exchange failed');
 
     // Exchange for long-lived token (60 days)
     const longRes = await axios.get(
       `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortToken}`,
+      { timeout: 10_000 },
     );
-    const longToken: string = longRes.data.access_token;
-    const expiresIn: number = longRes.data.expires_in;
+    const longToken: string | undefined = longRes.data?.access_token;
+    const expiresIn: number | undefined = longRes.data?.expires_in;
+    if (!longToken || !expiresIn)
+      throw new BadRequestException('Instagram long-lived token exchange failed');
 
     // Get username
     const profileRes = await axios.get(
       `https://graph.instagram.com/me?fields=username&access_token=${longToken}`,
+      { timeout: 10_000 },
     );
+    if (!profileRes.data?.username)
+      throw new BadRequestException('Failed to retrieve Instagram username');
 
     return this.prisma.instagramAccount.upsert({
       where: { userId },
@@ -104,8 +116,10 @@ export class InstagramService {
         caption,
         access_token: accessToken,
       },
+      { timeout: 10_000 },
     );
-    const containerId: string = containerRes.data.id;
+    const containerId: string | undefined = containerRes.data?.id;
+    if (!containerId) throw new Error('Failed to create IG media container');
 
     // Step 2: Wait for container to be ready
     await this.waitForContainer(containerId, accessToken);
@@ -114,9 +128,12 @@ export class InstagramService {
     const publishRes = await axios.post(
       `https://graph.instagram.com/${igUserId}/media_publish`,
       { creation_id: containerId, access_token: accessToken },
+      { timeout: 10_000 },
     );
 
-    return publishRes.data.id as string;
+    const publishId: string | undefined = publishRes.data?.id;
+    if (!publishId) throw new Error('Failed to publish IG media');
+    return publishId;
   }
 
   private async waitForContainer(containerId: string, accessToken: string, maxRetries = 20) {
@@ -124,9 +141,11 @@ export class InstagramService {
       await new Promise((r) => setTimeout(r, 5000));
       const res = await axios.get(
         `https://graph.instagram.com/${containerId}?fields=status_code&access_token=${accessToken}`,
+        { timeout: 10_000 },
       );
-      if (res.data.status_code === 'FINISHED') return;
-      if (res.data.status_code === 'ERROR') throw new Error('IG container processing failed');
+      const statusCode = res.data?.status_code;
+      if (statusCode === 'FINISHED') return;
+      if (statusCode === 'ERROR') throw new Error('IG container processing failed');
     }
     throw new Error('IG container timeout');
   }
