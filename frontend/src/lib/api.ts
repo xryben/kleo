@@ -15,7 +15,11 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('cleo_token');
-      window.location.href = '/login';
+      // Avoid redirect loop if already on login/register
+      const path = window.location.pathname;
+      if (path !== '/login' && path !== '/register') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(err);
   },
@@ -42,12 +46,14 @@ export const projectsApi = {
     const form = new FormData();
     form.append('title', title);
     form.append('video', file);
-    return api.post('/projects/upload', form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      onUploadProgress: (e) => {
-        if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
-      },
-    }).then((r) => r.data);
+    return api
+      .post('/projects/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          if (onProgress && e.total) onProgress(Math.round((e.loaded * 100) / e.total));
+        },
+      })
+      .then((r) => r.data);
   },
   remove: (id: string) => api.delete(`/projects/${id}`).then((r) => r.data),
 };
@@ -66,8 +72,12 @@ export const adminApi = {
   listTenants: () => api.get('/admin/tenants').then((r) => r.data),
   getTenant: (id: string) => api.get(`/admin/tenants/${id}`).then((r) => r.data),
   createTenant: (data: {
-    name: string; slug: string; ownerName: string;
-    ownerEmail: string; ownerPassword: string; plan?: string;
+    name: string;
+    slug: string;
+    ownerName: string;
+    ownerEmail: string;
+    ownerPassword: string;
+    plan?: string;
   }) => api.post('/admin/tenants', data).then((r) => r.data),
   updateTenant: (id: string, data: { name?: string; plan?: string; active?: boolean }) =>
     api.put(`/admin/tenants/${id}`, data).then((r) => r.data),
@@ -106,10 +116,8 @@ export const tiktokApi = {
 export const marketplaceApi = {
   list: (params?: { platform?: string; category?: string; sort?: string }) =>
     api.get('/marketplace/clips', { params }).then((r) => r.data),
-  get: (clipId: string) =>
-    api.get(`/marketplace/clips/${clipId}`).then((r) => r.data),
-  claim: (clipId: string) =>
-    api.post(`/marketplace/clips/${clipId}/claim`).then((r) => r.data),
+  get: (clipId: string) => api.get(`/marketplace/clips/${clipId}`).then((r) => r.data),
+  claim: (clipId: string) => api.post(`/marketplace/clips/${clipId}/claim`).then((r) => r.data),
 };
 
 // Claims (Clipper)
@@ -133,7 +141,10 @@ export const campaignsApi = {
   list: () => api.get('/infoproductor/campaigns').then((r) => r.data),
   get: (id: string) => api.get(`/infoproductor/campaigns/${id}`).then((r) => r.data),
   create: (data: {
-    title: string; description: string; budget: number;
-    cpmRate: number; clipIds: string[];
+    title: string;
+    description: string;
+    budget: number;
+    cpmRate: number;
+    clipIds: string[];
   }) => api.post('/infoproductor/campaigns', data).then((r) => r.data),
 };

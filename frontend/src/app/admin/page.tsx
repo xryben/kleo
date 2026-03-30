@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
+import { useAuth, logout } from '@/lib/useAuth';
 
 interface Stats {
   totals: {
@@ -36,25 +37,24 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminPage() {
   const router = useRouter();
+  const auth = useAuth({ requiredRole: 'SUPER_ADMIN' });
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const role = localStorage.getItem('cleo_role');
-    if (!localStorage.getItem('cleo_token') || role !== 'SUPER_ADMIN') {
-      router.replace('/login');
-      return;
-    }
-    adminApi.stats().then(setStats).finally(() => setLoading(false));
-  }, [router]);
+    if (auth.isLoading || !auth.isAuthenticated) return;
+    adminApi
+      .stats()
+      .then(setStats)
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated]);
 
-  function logout() {
-    localStorage.removeItem('cleo_token');
-    localStorage.removeItem('cleo_role');
-    router.push('/login');
-  }
-
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Cargando...
+      </div>
+    );
 
   return (
     <div className="min-h-screen">
@@ -63,11 +63,23 @@ export default function AdminPage() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
           <span className="text-lg font-bold text-white">Cleo</span>
-          <span className="bg-purple-500/20 text-purple-300 text-xs font-medium px-2 py-0.5 rounded-full">Admin</span>
+          <span className="bg-purple-500/20 text-purple-300 text-xs font-medium px-2 py-0.5 rounded-full">
+            Admin
+          </span>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/admin/tenants" className="text-slate-400 hover:text-white text-sm transition-colors">Tenants</Link>
-          <button onClick={logout} className="text-slate-400 hover:text-white text-sm transition-colors">Salir</button>
+          <Link
+            href="/admin/tenants"
+            className="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Tenants
+          </Link>
+          <button
+            onClick={() => logout(router)}
+            className="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Salir
+          </button>
         </div>
       </header>
 
@@ -98,7 +110,11 @@ export default function AdminPage() {
             <div className="flex flex-wrap gap-3">
               {Object.entries(stats.projectsByStatus).map(([status, count]) => (
                 <div key={status} className="flex items-center gap-1.5">
-                  <span className={`text-sm font-medium ${STATUS_COLORS[status] || 'text-slate-300'}`}>{status}</span>
+                  <span
+                    className={`text-sm font-medium ${STATUS_COLORS[status] || 'text-slate-300'}`}
+                  >
+                    {status}
+                  </span>
                   <span className="text-white font-bold text-sm">{count}</span>
                 </div>
               ))}
@@ -110,7 +126,9 @@ export default function AdminPage() {
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-700 flex items-center justify-between">
             <h2 className="font-semibold text-white">Proyectos recientes</h2>
-            <Link href="/admin/tenants" className="text-xs text-purple-400 hover:underline">Ver todos los tenants →</Link>
+            <Link href="/admin/tenants" className="text-xs text-purple-400 hover:underline">
+              Ver todos los tenants →
+            </Link>
           </div>
           <div className="divide-y divide-slate-700/50">
             {stats?.recentProjects.map((p) => (
@@ -118,7 +136,8 @@ export default function AdminPage() {
                 <div>
                   <div className="text-sm font-medium text-white">{p.title}</div>
                   <div className="text-xs text-slate-400">
-                    {p.tenant.name} · {p.user.email} · {new Date(p.createdAt).toLocaleDateString('es-ES')}
+                    {p.tenant.name} · {p.user.email} ·{' '}
+                    {new Date(p.createdAt).toLocaleDateString('es-ES')}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
@@ -128,7 +147,9 @@ export default function AdminPage() {
               </div>
             ))}
             {!stats?.recentProjects.length && (
-              <div className="px-5 py-8 text-center text-slate-500 text-sm">Sin proyectos todavía</div>
+              <div className="px-5 py-8 text-center text-slate-500 text-sm">
+                Sin proyectos todavía
+              </div>
             )}
           </div>
         </div>

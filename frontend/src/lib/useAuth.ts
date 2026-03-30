@@ -10,14 +10,6 @@ interface AuthState {
   isLoading: boolean;
 }
 
-/**
- * Centralized auth hook. Checks localStorage for token and redirects
- * unauthenticated users to /login. Prevents content flash by returning
- * isLoading=true until auth state is determined.
- *
- * @param options.requiredRole - If set, redirects users without this role
- * @param options.redirect - Whether to redirect on auth failure (default: true)
- */
 export function useAuth(options?: { requiredRole?: string; redirect?: boolean }): AuthState {
   const router = useRouter();
   const [state, setState] = useState<AuthState>({
@@ -52,13 +44,11 @@ export function useAuth(options?: { requiredRole?: string; redirect?: boolean })
   return state;
 }
 
-/** Get token safely (always at call-time, never at module-load). */
 export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem('cleo_token');
 }
 
-/** Clear auth state and redirect to login. */
 export function logout(router?: ReturnType<typeof useRouter>) {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('cleo_token');

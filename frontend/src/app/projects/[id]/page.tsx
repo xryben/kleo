@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi, clipsApi, publishApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface SocialPublish {
   platform: 'INSTAGRAM' | 'YOUTUBE' | 'TIKTOK';
@@ -42,6 +43,7 @@ const STEP_LABELS: Record<string, string> = {
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const auth = useAuth();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
@@ -59,9 +61,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }, [params.id, router]);
 
   useEffect(() => {
-    if (!localStorage.getItem('cleo_token')) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
     load();
-  }, [load, router]);
+  }, [auth.isLoading, auth.isAuthenticated, load]);
 
   // Poll while processing
   useEffect(() => {
@@ -83,7 +85,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Cargando...
+      </div>
+    );
   if (!project) return null;
 
   const isProcessing = !['READY', 'FAILED', 'PENDING'].includes(project.status);
@@ -92,12 +99,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">←</Link>
+        <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
+          ←
+        </Link>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">{project.title}</h1>
           {project.sourceUrl && (
-            <a href={project.sourceUrl} target="_blank" rel="noopener noreferrer"
-               className="text-xs text-purple-400 hover:underline truncate block max-w-xs">
+            <a
+              href={project.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-purple-400 hover:underline truncate block max-w-xs"
+            >
               {project.sourceUrl}
             </a>
           )}
@@ -109,9 +122,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         {project.status !== 'FAILED' && (
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 mb-8">
             <div className="flex items-center gap-2 mb-3">
-              {isProcessing && (
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
-              )}
+              {isProcessing && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />}
               <span className="text-sm font-medium text-white">
                 {project.status === 'READY'
                   ? `✅ ${project.clips.length} clips generados`
@@ -121,12 +132,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             <div className="flex gap-2">
               {STEPS.slice(0, 5).map((step, i) => (
                 <div key={step} className="flex-1">
-                  <div className={`h-1.5 rounded-full transition-colors ${
-                    i < currentStep ? 'bg-purple-500' :
-                    i === currentStep ? 'bg-purple-400 animate-pulse' :
-                    'bg-slate-700'
-                  }`} />
-                  <div className={`text-xs mt-1 ${i <= currentStep ? 'text-purple-400' : 'text-slate-600'}`}>
+                  <div
+                    className={`h-1.5 rounded-full transition-colors ${
+                      i < currentStep
+                        ? 'bg-purple-500'
+                        : i === currentStep
+                          ? 'bg-purple-400 animate-pulse'
+                          : 'bg-slate-700'
+                    }`}
+                  />
+                  <div
+                    className={`text-xs mt-1 ${i <= currentStep ? 'text-purple-400' : 'text-slate-600'}`}
+                  >
                     {STEP_LABELS[step]}
                   </div>
                 </div>
@@ -146,11 +163,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           <div>
             <h2 className="text-lg font-semibold text-white mb-4">
               Clips generados
-              <span className="ml-2 text-sm font-normal text-slate-400">({project.clips.length})</span>
+              <span className="ml-2 text-sm font-normal text-slate-400">
+                ({project.clips.length})
+              </span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {project.clips.map((clip, i) => (
-                <div key={clip.id} className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                <div
+                  key={clip.id}
+                  className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden"
+                >
                   {/* Thumbnail / play area */}
                   <button
                     onClick={() => setSelectedClip(clip)}
@@ -167,9 +189,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
                   {/* Info */}
                   <div className="p-3">
-                    <div className="text-sm font-medium text-white mb-1 line-clamp-2">{clip.title}</div>
+                    <div className="text-sm font-medium text-white mb-1 line-clamp-2">
+                      {clip.title}
+                    </div>
                     {clip.description && (
-                      <div className="text-xs text-slate-400 line-clamp-2 mb-2">{clip.description}</div>
+                      <div className="text-xs text-slate-400 line-clamp-2 mb-2">
+                        {clip.description}
+                      </div>
                     )}
                     <div className="flex gap-1.5 flex-wrap">
                       <button
@@ -180,9 +206,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                       </button>
                       {(
                         [
-                          { platform: 'INSTAGRAM', label: '📸', color: 'bg-pink-600 hover:bg-pink-700' },
-                          { platform: 'YOUTUBE', label: '▶️', color: 'bg-red-600 hover:bg-red-700' },
-                          { platform: 'TIKTOK', label: '🎵', color: 'bg-slate-600 hover:bg-slate-500' },
+                          {
+                            platform: 'INSTAGRAM',
+                            label: '📸',
+                            color: 'bg-pink-600 hover:bg-pink-700',
+                          },
+                          {
+                            platform: 'YOUTUBE',
+                            label: '▶️',
+                            color: 'bg-red-600 hover:bg-red-700',
+                          },
+                          {
+                            platform: 'TIKTOK',
+                            label: '🎵',
+                            color: 'bg-slate-600 hover:bg-slate-500',
+                          },
                         ] as const
                       ).map(({ platform, label, color }) => {
                         const pub = clip.publishes.find((p) => p.platform === platform);
@@ -222,8 +260,15 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
-              <div className="text-sm font-medium text-white line-clamp-1">{selectedClip.title}</div>
-              <button onClick={() => setSelectedClip(null)} className="text-slate-400 hover:text-white">✕</button>
+              <div className="text-sm font-medium text-white line-clamp-1">
+                {selectedClip.title}
+              </div>
+              <button
+                onClick={() => setSelectedClip(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
             </div>
             <video
               src={clipsApi.streamUrl(selectedClip.id)}

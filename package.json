@@ -13,11 +13,11 @@
   },
   "lint-staged": {
     "backend/src/**/*.ts": [
-      "eslint --fix",
+      "npx --prefix backend eslint --fix",
       "prettier --write"
     ],
     "frontend/src/**/*.{ts,tsx}": [
-      "eslint --fix",
+      "npx --prefix frontend eslint --fix",
       "prettier --write"
     ]
   },

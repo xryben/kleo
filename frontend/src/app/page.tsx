@@ -1,12 +1,12 @@
 'use client';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getToken } from '@/lib/useAuth';
 
 export default function Home() {
   const router = useRouter();
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    router.replace(token ? '/dashboard' : '/login');
+    router.replace(getToken() ? '/dashboard' : '/login');
   }, [router]);
   return null;
 }

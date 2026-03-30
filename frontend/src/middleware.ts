@@ -15,20 +15,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for auth token in cookies (primary) or fall through to client-side check
-  // Since tokens are currently in localStorage (client-only), middleware acts as
-  // a structural guard. The cookie-based check below is for future HttpOnly migration.
+  // Check for auth token in cookies for future HttpOnly cookie migration.
+  // Current auth uses localStorage (client-side only), so the useAuth hook
+  // handles the actual redirect. This middleware enables a smooth migration path.
   const token = request.cookies.get('cleo_token')?.value;
-
-  // If we have a cookie token, allow the request
   if (token) {
     return NextResponse.next();
   }
 
-  // For localStorage-based auth (current implementation), we can't check server-side.
-  // The middleware allows the request through but sets a header so client components
-  // know middleware ran. The useAuth hook handles the actual redirect.
-  // This structure enables a smooth migration to HttpOnly cookies later.
   return NextResponse.next();
 }
 

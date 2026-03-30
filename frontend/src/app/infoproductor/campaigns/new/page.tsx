@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { campaignsApi, projectsApi, clipsApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface Project {
   id: string;
@@ -13,6 +14,7 @@ interface Project {
 
 export default function NewCampaignPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [budget, setBudget] = useState('');
@@ -24,18 +26,20 @@ export default function NewCampaignPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
-    projectsApi.list()
-      .then((data: Project[]) => setProjects(data.filter((p) => p.status === 'READY' && p.clips?.length > 0)))
+    projectsApi
+      .list()
+      .then((data: Project[]) =>
+        setProjects(data.filter((p) => p.status === 'READY' && p.clips?.length > 0)),
+      )
       .catch(() => setProjects([]))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [auth.isLoading, auth.isAuthenticated]);
 
   function toggleClip(clipId: string) {
     setSelectedClips((prev) =>
-      prev.includes(clipId) ? prev.filter((id) => id !== clipId) : [...prev, clipId]
+      prev.includes(clipId) ? prev.filter((id) => id !== clipId) : [...prev, clipId],
     );
   }
 
@@ -68,9 +72,19 @@ export default function NewCampaignPage() {
       <header className="border-b border-slate-800 px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/dashboard" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
-          <Link href="/infoproductor/campaigns" className="text-sm text-slate-400 hover:text-white transition-colors">Campañas</Link>
+          <Link
+            href="/infoproductor/campaigns"
+            className="text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            Campañas
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
           <span className="text-sm text-slate-300 font-medium">Nueva</span>
         </div>
@@ -82,7 +96,9 @@ export default function NewCampaignPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Título de la campaña</label>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Título de la campaña
+            </label>
             <input
               type="text"
               value={title}
@@ -108,7 +124,9 @@ export default function NewCampaignPage() {
           {/* Budget and CPM */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Presupuesto total ($)</label>
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                Presupuesto total ($)
+              </label>
               <input
                 type="number"
                 value={budget}
@@ -153,7 +171,10 @@ export default function NewCampaignPage() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2].map((i) => (
-                  <div key={i} className="bg-slate-800 border border-slate-700 rounded-lg p-4 animate-pulse">
+                  <div
+                    key={i}
+                    className="bg-slate-800 border border-slate-700 rounded-lg p-4 animate-pulse"
+                  >
                     <div className="h-4 bg-slate-700 rounded w-1/3" />
                   </div>
                 ))}
@@ -161,14 +182,20 @@ export default function NewCampaignPage() {
             ) : projects.length === 0 ? (
               <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-6 text-center">
                 <p className="text-slate-400 text-sm">No tienes proyectos con clips disponibles</p>
-                <Link href="/projects/new" className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block">
+                <Link
+                  href="/projects/new"
+                  className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block"
+                >
                   Crear un proyecto →
                 </Link>
               </div>
             ) : (
               <div className="space-y-4">
                 {projects.map((project) => (
-                  <div key={project.id} className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                  <div
+                    key={project.id}
+                    className="bg-slate-800/50 border border-slate-700 rounded-lg p-4"
+                  >
                     <div className="text-sm font-medium text-slate-300 mb-3">{project.title}</div>
                     <div className="space-y-2">
                       {project.clips.map((clip) => (
@@ -189,7 +216,8 @@ export default function NewCampaignPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm text-white truncate">{clip.title}</div>
                             <div className="text-xs text-slate-400">
-                              {Math.floor(clip.duration / 60)}:{String(clip.duration % 60).padStart(2, '0')}
+                              {Math.floor(clip.duration / 60)}:
+                              {String(clip.duration % 60).padStart(2, '0')}
                             </div>
                           </div>
                         </label>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { campaignsApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface Campaign {
   id: string;
@@ -31,22 +32,31 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function CampaignsListPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
-    campaignsApi.list().then(setCampaigns).catch(() => setCampaigns([])).finally(() => setLoading(false));
-  }, [router]);
+    campaignsApi
+      .list()
+      .then(setCampaigns)
+      .catch(() => setCampaigns([]))
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated]);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/dashboard" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
           <span className="text-sm text-slate-300 font-medium">Mis Campañas</span>
         </div>
@@ -67,7 +77,10 @@ export default function CampaignsListPage() {
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 animate-pulse">
+              <div
+                key={i}
+                className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 animate-pulse"
+              >
                 <div className="h-5 bg-slate-700 rounded w-1/3 mb-3" />
                 <div className="h-4 bg-slate-700 rounded w-1/2" />
               </div>
@@ -77,7 +90,9 @@ export default function CampaignsListPage() {
           <div className="text-center py-16">
             <div className="text-5xl mb-4">📢</div>
             <h2 className="text-lg font-medium text-white mb-2">Sin campañas todavía</h2>
-            <p className="text-slate-400 text-sm mb-6">Crea tu primera campaña para distribuir tus clips en el marketplace</p>
+            <p className="text-slate-400 text-sm mb-6">
+              Crea tu primera campaña para distribuir tus clips en el marketplace
+            </p>
             <Link
               href="/infoproductor/campaigns/new"
               className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors inline-block"
@@ -99,7 +114,9 @@ export default function CampaignsListPage() {
                     <div>
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-white text-lg">{c.title}</h3>
-                        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-400'}`}>
+                        <span
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-400'}`}
+                        >
                           {STATUS_LABELS[c.status] || c.status}
                         </span>
                       </div>
@@ -120,7 +137,9 @@ export default function CampaignsListPage() {
                       <div className="text-xs text-slate-400">Gastado</div>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-white">{c.totalViews.toLocaleString()}</div>
+                      <div className="text-sm font-medium text-white">
+                        {c.totalViews.toLocaleString()}
+                      </div>
                       <div className="text-xs text-slate-400">Vistas totales</div>
                     </div>
                   </div>
@@ -131,7 +150,9 @@ export default function CampaignsListPage() {
                       style={{ width: `${Math.min(budgetPercent, 100)}%` }}
                     />
                   </div>
-                  <div className="text-xs text-slate-400 mt-2">{budgetPercent}% del presupuesto usado · {c.clipsCount} clips</div>
+                  <div className="text-xs text-slate-400 mt-2">
+                    {budgetPercent}% del presupuesto usado · {c.clipsCount} clips
+                  </div>
                 </Link>
               );
             })}

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface Tenant {
   id: string;
@@ -23,18 +24,24 @@ const PLAN_COLORS: Record<string, string> = {
 
 export default function AdminTenantsPage() {
   const router = useRouter();
+  const auth = useAuth({ requiredRole: 'SUPER_ADMIN' });
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (localStorage.getItem('cleo_role') !== 'SUPER_ADMIN') { router.replace('/login'); return; }
-    adminApi.listTenants().then(setTenants).finally(() => setLoading(false));
-  }, [router]);
+    if (auth.isLoading || !auth.isAuthenticated) return;
+    adminApi
+      .listTenants()
+      .then(setTenants)
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated]);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">←</Link>
+        <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">
+          ←
+        </Link>
         <span className="text-lg font-bold text-white">Tenants</span>
         <div className="ml-auto">
           <Link
@@ -59,16 +66,22 @@ export default function AdminTenantsPage() {
                   className="flex items-center justify-between px-5 py-4 hover:bg-slate-700/30 transition-colors"
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`w-2 h-2 rounded-full ${t.active ? 'bg-green-400' : 'bg-red-400'}`} />
+                    <div
+                      className={`w-2 h-2 rounded-full ${t.active ? 'bg-green-400' : 'bg-red-400'}`}
+                    />
                     <div>
                       <div className="font-medium text-white">{t.name}</div>
-                      <div className="text-xs text-slate-400">{t.slug} · {new Date(t.createdAt).toLocaleDateString('es-ES')}</div>
+                      <div className="text-xs text-slate-400">
+                        {t.slug} · {new Date(t.createdAt).toLocaleDateString('es-ES')}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-sm">
                     <span className="text-slate-400">{t._count.users} usuarios</span>
                     <span className="text-slate-400">{t._count.projects} proyectos</span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[t.plan] || 'bg-slate-500/20 text-slate-300'}`}>
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${PLAN_COLORS[t.plan] || 'bg-slate-500/20 text-slate-300'}`}
+                    >
                       {t.plan}
                     </span>
                     <span className="text-slate-500">→</span>

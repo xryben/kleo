@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { createReadStream, statSync } from 'fs';
 import { PrismaService } from '../../prisma.service';
@@ -6,16 +7,25 @@ import { PrismaService } from '../../prisma.service';
 @Injectable()
 export class TikTokService {
   private readonly logger = new Logger(TikTokService.name);
+  private readonly clientKey: string | undefined;
+  private readonly clientSecret: string | undefined;
+  private readonly redirectUri: string | undefined;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.clientKey = config.get<string>('tiktok.clientKey');
+    this.clientSecret = config.get<string>('tiktok.clientSecret');
+    this.redirectUri = config.get<string>('tiktok.redirectUri');
+  }
 
   getAuthUrl(userId: string): string {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
-    const redirectUri = process.env.TIKTOK_REDIRECT_URI;
-    if (!clientKey || !redirectUri) throw new BadRequestException('TikTok no configurado');
+    if (!this.clientKey || !this.redirectUri)
+      throw new BadRequestException('TikTok no configurado');
 
     const params = new URLSearchParams({
-      client_key: clientKey,
+      client_key: this.clientKey,
       response_type: 'code',
       scope: 'user.info.basic,video.publish,video.upload',
       redirect_uri: redirectUri,
@@ -25,21 +35,18 @@ export class TikTokService {
   }
 
   async handleCallback(code: string, userId: string) {
-    const clientKey = process.env.TIKTOK_CLIENT_KEY;
-    const clientSecret = process.env.TIKTOK_CLIENT_SECRET;
-    const redirectUri = process.env.TIKTOK_REDIRECT_URI;
-    if (!clientKey || !clientSecret || !redirectUri)
+    if (!this.clientKey || !this.clientSecret || !this.redirectUri)
       throw new BadRequestException('TikTok no configurado');
 
     // Exchange code for token
     const tokenRes = await axios.post(
       'https://open.tiktokapis.com/v2/oauth/token/',
       {
-        client_key: clientKey,
-        client_secret: clientSecret,
+        client_key: this.clientKey,
+        client_secret: this.clientSecret,
         code,
         grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
+        redirect_uri: this.redirectUri,
       },
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10_000 },
     );

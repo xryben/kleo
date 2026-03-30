@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clipperApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface DashboardData {
   totalEarnings: number;
@@ -33,32 +34,50 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function ClipperDashboardPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
-    clipperApi.dashboard()
+    clipperApi
+      .dashboard()
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [router]);
+  }, [auth.isLoading, auth.isAuthenticated]);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/dashboard" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
           <span className="text-sm text-slate-300 font-medium">Clipper Dashboard</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          <Link href="/marketplace" className="text-slate-400 hover:text-white transition-colors">Marketplace</Link>
-          <Link href="/clipper/claims" className="text-slate-400 hover:text-white transition-colors">Mis Claims</Link>
-          <Link href="/clipper/earnings" className="text-slate-400 hover:text-white transition-colors">Ganancias</Link>
+          <Link href="/marketplace" className="text-slate-400 hover:text-white transition-colors">
+            Marketplace
+          </Link>
+          <Link
+            href="/clipper/claims"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            Mis Claims
+          </Link>
+          <Link
+            href="/clipper/earnings"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            Ganancias
+          </Link>
         </div>
       </header>
 
@@ -68,7 +87,10 @@ export default function ClipperDashboardPage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 animate-pulse">
+              <div
+                key={i}
+                className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 animate-pulse"
+              >
                 <div className="h-4 bg-slate-700 rounded w-1/2 mb-3" />
                 <div className="h-8 bg-slate-700 rounded w-1/3" />
               </div>
@@ -85,7 +107,9 @@ export default function ClipperDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
                 <div className="text-sm text-slate-400">Ganancias totales</div>
-                <div className="text-3xl font-bold text-green-400 mt-2">${data.totalEarnings.toFixed(2)}</div>
+                <div className="text-3xl font-bold text-green-400 mt-2">
+                  ${data.totalEarnings.toFixed(2)}
+                </div>
               </div>
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
                 <div className="text-sm text-slate-400">Claims activos</div>
@@ -93,19 +117,30 @@ export default function ClipperDashboardPage() {
               </div>
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-6">
                 <div className="text-sm text-slate-400">Pendientes de verificación</div>
-                <div className="text-3xl font-bold text-yellow-400 mt-2">{data.pendingSubmissions}</div>
+                <div className="text-3xl font-bold text-yellow-400 mt-2">
+                  {data.pendingSubmissions}
+                </div>
               </div>
             </div>
 
             {/* Quick Actions */}
             <div className="flex flex-wrap gap-3 mb-8">
-              <Link href="/marketplace" className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm">
+              <Link
+                href="/marketplace"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+              >
                 Buscar clips
               </Link>
-              <Link href="/clipper/claims" className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm">
+              <Link
+                href="/clipper/claims"
+                className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+              >
                 Ver todos mis claims
               </Link>
-              <Link href="/clipper/earnings" className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm">
+              <Link
+                href="/clipper/earnings"
+                className="bg-slate-700 hover:bg-slate-600 text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm"
+              >
                 Historial de ganancias
               </Link>
             </div>
@@ -117,7 +152,10 @@ export default function ClipperDashboardPage() {
                 <div className="text-center py-12 bg-slate-800/50 border border-slate-700 rounded-xl">
                   <div className="text-4xl mb-3">🎬</div>
                   <p className="text-slate-400 text-sm">No tienes claims todavía</p>
-                  <Link href="/marketplace" className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block">
+                  <Link
+                    href="/marketplace"
+                    className="text-purple-400 hover:text-purple-300 text-sm mt-2 inline-block"
+                  >
                     Explora el marketplace →
                   </Link>
                 </div>
@@ -137,9 +175,13 @@ export default function ClipperDashboardPage() {
                       </div>
                       <div className="flex items-center gap-4 text-sm">
                         {claim.earnings > 0 && (
-                          <span className="text-green-400 font-medium">${claim.earnings.toFixed(2)}</span>
+                          <span className="text-green-400 font-medium">
+                            ${claim.earnings.toFixed(2)}
+                          </span>
                         )}
-                        <span className={`font-medium ${STATUS_COLORS[claim.status] || 'text-slate-400'}`}>
+                        <span
+                          className={`font-medium ${STATUS_COLORS[claim.status] || 'text-slate-400'}`}
+                        >
                           {STATUS_LABELS[claim.status] || claim.status}
                         </span>
                         <span className="text-slate-500">→</span>

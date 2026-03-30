@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface TenantDetail {
   id: string;
@@ -14,21 +15,33 @@ interface TenantDetail {
   users: Array<{ id: string; name: string; email: string; role: string; createdAt: string }>;
   _count: { projects: number };
   projects: Array<{
-    id: string; title: string; status: string; createdAt: string;
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
     _count: { clips: number };
   }>;
 }
 
 const PLAN_COLORS: Record<string, string> = {
-  FREE: 'text-slate-300', STARTER: 'text-blue-300', PRO: 'text-purple-300', ENTERPRISE: 'text-yellow-300',
+  FREE: 'text-slate-300',
+  STARTER: 'text-blue-300',
+  PRO: 'text-purple-300',
+  ENTERPRISE: 'text-yellow-300',
 };
 const STATUS_COLORS: Record<string, string> = {
-  READY: 'text-green-400', FAILED: 'text-red-400', PENDING: 'text-slate-400',
-  DOWNLOADING: 'text-blue-400', TRANSCRIBING: 'text-yellow-400', ANALYZING: 'text-orange-400', CUTTING: 'text-purple-400',
+  READY: 'text-green-400',
+  FAILED: 'text-red-400',
+  PENDING: 'text-slate-400',
+  DOWNLOADING: 'text-blue-400',
+  TRANSCRIBING: 'text-yellow-400',
+  ANALYZING: 'text-orange-400',
+  CUTTING: 'text-purple-400',
 };
 
 export default function TenantDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const auth = useAuth({ requiredRole: 'SUPER_ADMIN' });
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -36,17 +49,20 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
   const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem('cleo_role') !== 'SUPER_ADMIN') { router.replace('/login'); return; }
-    adminApi.getTenant(params.id).then((data) => {
-      setTenant(data);
-      setEditForm({ name: data.name, plan: data.plan, active: data.active });
-    }).finally(() => setLoading(false));
-  }, [params.id, router]);
+    if (auth.isLoading || !auth.isAuthenticated) return;
+    adminApi
+      .getTenant(params.id)
+      .then((data) => {
+        setTenant(data);
+        setEditForm({ name: data.name, plan: data.plan, active: data.active });
+      })
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated, params.id]);
 
   async function handleSave() {
     if (!tenant) return;
     await adminApi.updateTenant(tenant.id, editForm);
-    setTenant((t) => t ? { ...t, ...editForm } : null);
+    setTenant((t) => (t ? { ...t, ...editForm } : null));
     setEditing(false);
   }
 
@@ -67,16 +83,23 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
   async function handleToggleActive() {
     if (!tenant) return;
     await adminApi.updateTenant(tenant.id, { active: !tenant.active });
-    setTenant((t) => t ? { ...t, active: !t.active } : null);
+    setTenant((t) => (t ? { ...t, active: !t.active } : null));
   }
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Cargando...</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Cargando...
+      </div>
+    );
   if (!tenant) return null;
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin/tenants" className="text-slate-400 hover:text-white">←</Link>
+        <Link href="/admin/tenants" className="text-slate-400 hover:text-white">
+          ←
+        </Link>
         <div className="flex-1">
           <h1 className="text-lg font-bold text-white">{tenant.name}</h1>
           <div className="text-xs text-slate-400">{tenant.slug}</div>
@@ -107,7 +130,10 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
         <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-white">Información</h2>
-            <button onClick={() => setEditing(!editing)} className="text-xs text-purple-400 hover:underline">
+            <button
+              onClick={() => setEditing(!editing)}
+              className="text-xs text-purple-400 hover:underline"
+            >
               {editing ? 'Cancelar' : 'Editar'}
             </button>
           </div>
@@ -130,21 +156,39 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
                   className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
                 >
                   {['FREE', 'STARTER', 'PRO', 'ENTERPRISE'].map((p) => (
-                    <option key={p} value={p}>{p}</option>
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
                   ))}
                 </select>
               </div>
-              <button onClick={handleSave} className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg">
+              <button
+                onClick={handleSave}
+                className="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded-lg"
+              >
                 Guardar
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               {[
-                { label: 'Plan', value: <span className={PLAN_COLORS[tenant.plan]}>{tenant.plan}</span> },
-                { label: 'Estado', value: <span className={tenant.active ? 'text-green-400' : 'text-red-400'}>{tenant.active ? 'Activo' : 'Suspendido'}</span> },
+                {
+                  label: 'Plan',
+                  value: <span className={PLAN_COLORS[tenant.plan]}>{tenant.plan}</span>,
+                },
+                {
+                  label: 'Estado',
+                  value: (
+                    <span className={tenant.active ? 'text-green-400' : 'text-red-400'}>
+                      {tenant.active ? 'Activo' : 'Suspendido'}
+                    </span>
+                  ),
+                },
                 { label: 'Proyectos', value: tenant._count.projects },
-                { label: 'Miembro desde', value: new Date(tenant.createdAt).toLocaleDateString('es-ES') },
+                {
+                  label: 'Miembro desde',
+                  value: new Date(tenant.createdAt).toLocaleDateString('es-ES'),
+                },
               ].map((item) => (
                 <div key={item.label}>
                   <div className="text-xs text-slate-400 mb-0.5">{item.label}</div>
@@ -183,7 +227,9 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
               <div key={p.id} className="px-5 py-3 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium text-white">{p.title}</div>
-                  <div className="text-xs text-slate-400">{new Date(p.createdAt).toLocaleDateString('es-ES')}</div>
+                  <div className="text-xs text-slate-400">
+                    {new Date(p.createdAt).toLocaleDateString('es-ES')}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-slate-400">{p._count.clips} clips</span>

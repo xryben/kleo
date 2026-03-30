@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { marketplaceApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface MarketplaceClip {
   id: string;
@@ -16,7 +17,15 @@ interface MarketplaceClip {
 }
 
 const PLATFORMS = ['Todas', 'INSTAGRAM', 'YOUTUBE', 'TIKTOK'];
-const CATEGORIES = ['Todas', 'TECH', 'FITNESS', 'FINANCE', 'LIFESTYLE', 'EDUCATION', 'ENTERTAINMENT'];
+const CATEGORIES = [
+  'Todas',
+  'TECH',
+  'FITNESS',
+  'FINANCE',
+  'LIFESTYLE',
+  'EDUCATION',
+  'ENTERTAINMENT',
+];
 const SORT_OPTIONS = [
   { value: 'cpm_desc', label: 'CPM: Mayor a menor' },
   { value: 'cpm_asc', label: 'CPM: Menor a mayor' },
@@ -41,6 +50,7 @@ const PLATFORM_ICONS: Record<string, string> = {
 
 export default function MarketplacePage() {
   const router = useRouter();
+  const auth = useAuth();
   const [clips, setClips] = useState<MarketplaceClip[]>([]);
   const [loading, setLoading] = useState(true);
   const [platform, setPlatform] = useState('Todas');
@@ -48,8 +58,7 @@ export default function MarketplacePage() {
   const [sort, setSort] = useState('cpm_desc');
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
     setLoading(true);
     const params: Record<string, string> = {};
@@ -57,28 +66,49 @@ export default function MarketplacePage() {
     if (category !== 'Todas') params.category = category;
     params.sort = sort;
 
-    marketplaceApi.list(params).then(setClips).catch(() => setClips([])).finally(() => setLoading(false));
-  }, [router, platform, category, sort]);
+    marketplaceApi
+      .list(params)
+      .then(setClips)
+      .catch(() => setClips([]))
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated, platform, category, sort]);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/dashboard" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
           <span className="text-sm text-slate-300 font-medium">Marketplace</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/clipper/dashboard" className="text-slate-400 hover:text-white text-sm transition-colors">Mi Dashboard</Link>
-          <Link href="/dashboard" className="text-slate-400 hover:text-white text-sm transition-colors">Proyectos</Link>
+          <Link
+            href="/clipper/dashboard"
+            className="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Mi Dashboard
+          </Link>
+          <Link
+            href="/dashboard"
+            className="text-slate-400 hover:text-white text-sm transition-colors"
+          >
+            Proyectos
+          </Link>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white">Marketplace de Clips</h1>
-          <p className="text-slate-400 text-sm mt-1">Encuentra clips para publicar y genera ingresos</p>
+          <p className="text-slate-400 text-sm mt-1">
+            Encuentra clips para publicar y genera ingresos
+          </p>
         </div>
 
         {/* Filters */}
@@ -89,7 +119,9 @@ export default function MarketplacePage() {
             className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500"
           >
             {PLATFORMS.map((p) => (
-              <option key={p} value={p}>{p === 'Todas' ? 'Plataforma: Todas' : p}</option>
+              <option key={p} value={p}>
+                {p === 'Todas' ? 'Plataforma: Todas' : p}
+              </option>
             ))}
           </select>
 
@@ -99,7 +131,9 @@ export default function MarketplacePage() {
             className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500"
           >
             {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c === 'Todas' ? 'Categoría: Todas' : c}</option>
+              <option key={c} value={c}>
+                {c === 'Todas' ? 'Categoría: Todas' : c}
+              </option>
             ))}
           </select>
 
@@ -109,7 +143,9 @@ export default function MarketplacePage() {
             className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-purple-500"
           >
             {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -117,7 +153,10 @@ export default function MarketplacePage() {
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden animate-pulse">
+              <div
+                key={i}
+                className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden animate-pulse"
+              >
                 <div className="w-full h-48 bg-slate-700" />
                 <div className="p-4 space-y-3">
                   <div className="h-4 bg-slate-700 rounded w-3/4" />
@@ -142,7 +181,11 @@ export default function MarketplacePage() {
               >
                 <div className="relative w-full h-48 bg-slate-700 flex items-center justify-center">
                   {clip.thumbnailUrl ? (
-                    <img src={clip.thumbnailUrl} alt={clip.title} className="w-full h-full object-cover" />
+                    <img
+                      src={clip.thumbnailUrl}
+                      alt={clip.title}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <span className="text-4xl text-slate-500">🎬</span>
                   )}
@@ -156,7 +199,9 @@ export default function MarketplacePage() {
                   )}
                 </div>
                 <div className="p-4">
-                  <h3 className="font-medium text-white group-hover:text-purple-400 transition-colors truncate">{clip.title}</h3>
+                  <h3 className="font-medium text-white group-hover:text-purple-400 transition-colors truncate">
+                    {clip.title}
+                  </h3>
                   <p className="text-sm text-slate-400 mt-1 truncate">{clip.campaignTitle}</p>
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-sm">{PLATFORM_ICONS[clip.platform] || '📱'}</span>

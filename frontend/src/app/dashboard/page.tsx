@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi } from '@/lib/api';
+import { useAuth, logout } from '@/lib/useAuth';
 
 interface Project {
   id: string;
@@ -35,11 +36,14 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const isImpersonating = typeof window !== 'undefined' && !!localStorage.getItem('cleo_admin_token');
+  const isImpersonating =
+    typeof window !== 'undefined' && !!localStorage.getItem('cleo_admin_token');
 
   function exitImpersonation() {
+    if (typeof window === 'undefined') return;
     const adminToken = localStorage.getItem('cleo_admin_token');
     if (adminToken) {
       localStorage.setItem('cleo_token', adminToken);
@@ -50,15 +54,21 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    const role = localStorage.getItem('cleo_role');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
     // SUPER_ADMIN without impersonation → back to admin
-    if (role === 'SUPER_ADMIN' && !localStorage.getItem('cleo_admin_token')) {
-      router.replace('/admin'); return;
+    if (
+      auth.role === 'SUPER_ADMIN' &&
+      typeof window !== 'undefined' &&
+      !localStorage.getItem('cleo_admin_token')
+    ) {
+      router.replace('/admin');
+      return;
     }
-    projectsApi.list().then(setProjects).finally(() => setLoading(false));
-  }, [router]);
+    projectsApi
+      .list()
+      .then(setProjects)
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated, auth.role, router]);
 
   return (
     <div className="min-h-screen">
@@ -66,7 +76,10 @@ export default function DashboardPage() {
       {isImpersonating && (
         <div className="bg-orange-500 px-6 py-2 flex items-center justify-between text-sm">
           <span className="text-white font-medium">🎭 Modo impersonación activo</span>
-          <button onClick={exitImpersonation} className="bg-white text-orange-600 font-medium px-3 py-1 rounded text-xs hover:bg-orange-50 transition-colors">
+          <button
+            onClick={exitImpersonation}
+            className="bg-white text-orange-600 font-medium px-3 py-1 rounded text-xs hover:bg-orange-50 transition-colors"
+          >
             Volver al admin
           </button>
         </div>
@@ -78,11 +91,14 @@ export default function DashboardPage() {
           <span className="text-lg font-bold text-white">Cleo</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/settings" className="text-slate-400 hover:text-white text-sm transition-colors">
+          <Link
+            href="/settings"
+            className="text-slate-400 hover:text-white text-sm transition-colors"
+          >
             Configuración
           </Link>
           <button
-            onClick={() => { localStorage.removeItem('cleo_token'); router.push('/login'); }}
+            onClick={() => logout(router)}
             className="text-slate-400 hover:text-white text-sm transition-colors"
           >
             Salir

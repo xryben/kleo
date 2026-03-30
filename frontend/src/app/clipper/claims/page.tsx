@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { claimsApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface Claim {
   id: string;
@@ -37,16 +38,20 @@ const PLATFORM_ICONS: Record<string, string> = {
 
 export default function ClaimsListPage() {
   const router = useRouter();
+  const auth = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
-    claimsApi.list().then(setClaims).catch(() => setClaims([])).finally(() => setLoading(false));
-  }, [router]);
+    claimsApi
+      .list()
+      .then(setClaims)
+      .catch(() => setClaims([]))
+      .finally(() => setLoading(false));
+  }, [auth.isLoading, auth.isAuthenticated]);
 
   const filtered = filter === 'ALL' ? claims : claims.filter((c) => c.status === filter);
 
@@ -55,13 +60,26 @@ export default function ClaimsListPage() {
       <header className="border-b border-slate-800 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/dashboard" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/dashboard"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
-          <Link href="/clipper/dashboard" className="text-sm text-slate-400 hover:text-white transition-colors">Clipper</Link>
+          <Link
+            href="/clipper/dashboard"
+            className="text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            Clipper
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
           <span className="text-sm text-slate-300 font-medium">Mis Claims</span>
         </div>
-        <Link href="/marketplace" className="text-purple-400 hover:text-purple-300 text-sm transition-colors">
+        <Link
+          href="/marketplace"
+          className="text-purple-400 hover:text-purple-300 text-sm transition-colors"
+        >
           + Buscar clips
         </Link>
       </header>
@@ -94,7 +112,10 @@ export default function ClaimsListPage() {
         {loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 animate-pulse">
+              <div
+                key={i}
+                className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 animate-pulse"
+              >
                 <div className="flex gap-4">
                   <div className="w-20 h-14 bg-slate-700 rounded-lg" />
                   <div className="flex-1 space-y-2">
@@ -125,7 +146,11 @@ export default function ClaimsListPage() {
               >
                 <div className="w-20 h-14 bg-slate-700 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center">
                   {claim.clipThumbnailUrl ? (
-                    <img src={claim.clipThumbnailUrl} alt="" className="w-full h-full object-cover" />
+                    <img
+                      src={claim.clipThumbnailUrl}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <span className="text-2xl text-slate-500">🎬</span>
                   )}
@@ -133,16 +158,22 @@ export default function ClaimsListPage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-white truncate">{claim.clipTitle}</div>
                   <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
-                    <span>{PLATFORM_ICONS[claim.platform] || '📱'} {claim.platform}</span>
+                    <span>
+                      {PLATFORM_ICONS[claim.platform] || '📱'} {claim.platform}
+                    </span>
                     <span>·</span>
                     <span>{new Date(claim.createdAt).toLocaleDateString('es-ES')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   {claim.earnings > 0 && (
-                    <span className="text-green-400 font-medium text-sm">${claim.earnings.toFixed(2)}</span>
+                    <span className="text-green-400 font-medium text-sm">
+                      ${claim.earnings.toFixed(2)}
+                    </span>
                   )}
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[claim.status] || 'bg-slate-700 text-slate-400'}`}>
+                  <span
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[claim.status] || 'bg-slate-700 text-slate-400'}`}
+                  >
                     {STATUS_LABELS[claim.status] || claim.status}
                   </span>
                   <span className="text-slate-500">→</span>

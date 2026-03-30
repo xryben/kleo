@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { marketplaceApi, clipsApi } from '@/lib/api';
+import { useAuth } from '@/lib/useAuth';
 
 interface ClipDetail {
   id: string;
@@ -41,6 +42,7 @@ export default function ClipDetailPage() {
   const router = useRouter();
   const params = useParams();
   const clipId = params.clipId as string;
+  const auth = useAuth();
   const [clip, setClip] = useState<ClipDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [claiming, setClaiming] = useState(false);
@@ -48,14 +50,14 @@ export default function ClipDetailPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('cleo_token');
-    if (!token) { router.replace('/login'); return; }
+    if (auth.isLoading || !auth.isAuthenticated) return;
 
-    marketplaceApi.get(clipId)
+    marketplaceApi
+      .get(clipId)
       .then((data) => setClip(data))
       .catch(() => setError('No se pudo cargar el clip'))
       .finally(() => setLoading(false));
-  }, [router, clipId]);
+  }, [auth.isLoading, auth.isAuthenticated, clipId]);
 
   async function handleClaim() {
     setClaiming(true);
@@ -76,7 +78,9 @@ export default function ClipDetailPage() {
         <header className="border-b border-slate-800 px-6 py-4">
           <div className="flex items-center gap-3">
             <span className="text-2xl">✂️</span>
-            <Link href="/marketplace" className="text-lg font-bold text-white">Cleo</Link>
+            <Link href="/marketplace" className="text-lg font-bold text-white">
+              Cleo
+            </Link>
             <span className="text-slate-600 mx-2">/</span>
             <span className="text-sm text-slate-400">Cargando...</span>
           </div>
@@ -98,7 +102,12 @@ export default function ClipDetailPage() {
         <div className="text-center">
           <div className="text-5xl mb-4">❌</div>
           <p className="text-slate-400">{error}</p>
-          <Link href="/marketplace" className="text-purple-400 hover:text-purple-300 text-sm mt-4 inline-block">Volver al marketplace</Link>
+          <Link
+            href="/marketplace"
+            className="text-purple-400 hover:text-purple-300 text-sm mt-4 inline-block"
+          >
+            Volver al marketplace
+          </Link>
         </div>
       </div>
     );
@@ -107,20 +116,33 @@ export default function ClipDetailPage() {
   if (!clip) return null;
 
   const streamUrl = clipsApi.streamUrl(clip.id);
-  const budgetPercent = clip.campaign.totalBudget > 0
-    ? Math.round((clip.campaign.spentBudget / clip.campaign.totalBudget) * 100)
-    : 0;
+  const budgetPercent =
+    clip.campaign.totalBudget > 0
+      ? Math.round((clip.campaign.spentBudget / clip.campaign.totalBudget) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl">✂️</span>
-          <Link href="/marketplace" className="text-lg font-bold text-white hover:text-purple-400 transition-colors">Cleo</Link>
+          <Link
+            href="/marketplace"
+            className="text-lg font-bold text-white hover:text-purple-400 transition-colors"
+          >
+            Cleo
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
-          <Link href="/marketplace" className="text-sm text-slate-400 hover:text-white transition-colors">Marketplace</Link>
+          <Link
+            href="/marketplace"
+            className="text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            Marketplace
+          </Link>
           <span className="text-slate-600 mx-2">/</span>
-          <span className="text-sm text-slate-300 font-medium truncate max-w-[200px]">{clip.title}</span>
+          <span className="text-sm text-slate-300 font-medium truncate max-w-[200px]">
+            {clip.title}
+          </span>
         </div>
       </header>
 
@@ -143,10 +165,14 @@ export default function ClipDetailPage() {
 
             {/* Campaign Stats */}
             <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-xl p-5">
-              <h3 className="text-sm font-medium text-slate-300 mb-4">Estadísticas de la campaña</h3>
+              <h3 className="text-sm font-medium text-slate-300 mb-4">
+                Estadísticas de la campaña
+              </h3>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <div className="text-2xl font-bold text-white">{clip.stats.totalViews.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-white">
+                    {clip.stats.totalViews.toLocaleString()}
+                  </div>
                   <div className="text-xs text-slate-400 mt-1">Vistas totales</div>
                 </div>
                 <div>
@@ -159,7 +185,10 @@ export default function ClipDetailPage() {
                 </div>
               </div>
               <div className="mt-3 w-full bg-slate-700 rounded-full h-2">
-                <div className="bg-purple-500 h-2 rounded-full transition-all" style={{ width: `${budgetPercent}%` }} />
+                <div
+                  className="bg-purple-500 h-2 rounded-full transition-all"
+                  style={{ width: `${budgetPercent}%` }}
+                />
               </div>
             </div>
           </div>
@@ -199,8 +228,14 @@ export default function ClipDetailPage() {
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center text-lg">
                   {clip.infoproductor.avatarUrl ? (
-                    <img src={clip.infoproductor.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
-                  ) : '👤'}
+                    <img
+                      src={clip.infoproductor.avatarUrl}
+                      alt=""
+                      className="w-full h-full rounded-full object-cover"
+                    />
+                  ) : (
+                    '👤'
+                  )}
                 </div>
                 <div>
                   <div className="text-sm font-medium text-white">{clip.infoproductor.name}</div>
@@ -210,7 +245,9 @@ export default function ClipDetailPage() {
               <div className="border-t border-slate-700 pt-4 space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-400">Plataforma</span>
-                  <span className="text-white">{PLATFORM_ICONS[clip.platform] || '📱'} {clip.platform}</span>
+                  <span className="text-white">
+                    {PLATFORM_ICONS[clip.platform] || '📱'} {clip.platform}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-400">Categoría</span>
