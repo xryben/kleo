@@ -64,10 +64,14 @@ export default function DashboardPage() {
       router.replace('/admin');
       return;
     }
+    const controller = new AbortController();
     projectsApi
       .list()
       .then(setProjects)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, auth.role, router]);
 
   return (

@@ -235,6 +235,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                             onClick={() => !isPublished && handlePublish(clip.id, platform)}
                             disabled={isPublished || isPublishing}
                             title={platform}
+                            aria-label={`${isPublishing ? 'Publicando en' : isPublished ? 'Publicado en' : 'Publicar en'} ${platform}`}
                             className={`px-2 py-1.5 rounded-lg text-xs text-white transition-colors disabled:opacity-60 ${
                               isPublished ? 'bg-green-600' : color
                             }`}
@@ -255,8 +256,14 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       {/* Video preview modal */}
       {selectedClip && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Vista previa: ${selectedClip.title}`}
           className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
           onClick={() => setSelectedClip(null)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setSelectedClip(null);
+          }}
         >
           <div
             className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden w-full max-w-sm"
@@ -269,6 +276,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               <button
                 onClick={() => setSelectedClip(null)}
                 className="text-slate-400 hover:text-white"
+                aria-label="Cerrar vista previa"
               >
                 ✕
               </button>
