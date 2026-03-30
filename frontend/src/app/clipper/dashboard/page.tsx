@@ -41,11 +41,20 @@ export default function ClipperDashboardPage() {
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
 
+    const controller = new AbortController();
     clipperApi
       .dashboard()
       .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load clipper dashboard:', err);
+          setData(null);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   return (

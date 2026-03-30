@@ -41,16 +41,26 @@ export default function ClaimsListPage() {
   const auth = useAuth();
   const [claims, setClaims] = useState<Claim[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filter, setFilter] = useState('ALL');
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
 
+    const controller = new AbortController();
     claimsApi
       .list()
       .then(setClaims)
-      .catch(() => setClaims([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load claims:', err);
+          setError('No se pudieron cargar los claims');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   const filtered = filter === 'ALL' ? claims : claims.filter((c) => c.status === filter);
@@ -109,7 +119,17 @@ export default function ClaimsListPage() {
           ))}
         </div>
 
-        {loading ? (
+        {error ? (
+          <div className="text-center py-16">
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-sm text-purple-400 hover:underline"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { execFileSync } from 'child_process';
 import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
@@ -17,10 +18,18 @@ interface ClipMoment {
 @Injectable()
 export class ProcessingService {
   private readonly logger = new Logger(ProcessingService.name);
-  private openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  private uploadsPath = process.env.UPLOADS_PATH || '/var/www/cleo/uploads';
+  private readonly openai: OpenAI;
+  private readonly uploadsPath: string;
+  private readonly openrouterApiKey: string | undefined;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.openai = new OpenAI({ apiKey: config.get<string>('ai.openaiApiKey') });
+    this.uploadsPath = config.get<string>('app.uploadsPath')!;
+    this.openrouterApiKey = config.get<string>('ai.openrouterApiKey');
+  }
 
   async processProject(projectId: string): Promise<void> {
     const project = await this.prisma.videoProject.findUnique({ where: { id: projectId } });
@@ -174,8 +183,7 @@ Reglas:
 Responde SOLO con JSON válido, sin markdown:
 {"clips": [{"title": "Título corto y llamativo", "description": "Caption para Instagram con emojis", "startTime": 10.5, "endTime": 65.2}]}`;
 
-    const apiKey = process.env.OPENROUTER_API_KEY;
-    if (!apiKey) throw new Error('OPENROUTER_API_KEY no configurada');
+    if (!this.openrouterApiKey) throw new Error('OPENROUTER_API_KEY no configurada');
 
     const response = await axios.post(
       'https://openrouter.ai/api/v1/chat/completions',
@@ -185,7 +193,10 @@ Responde SOLO con JSON válido, sin markdown:
         temperature: 0.3,
       },
       {
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${this.openrouterApiKey}`,
+          'Content-Type': 'application/json',
+        },
         timeout: 30_000,
       },
     );

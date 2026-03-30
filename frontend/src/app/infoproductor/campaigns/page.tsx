@@ -35,15 +35,25 @@ export default function CampaignsListPage() {
   const auth = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
 
+    const controller = new AbortController();
     campaignsApi
       .list()
       .then(setCampaigns)
-      .catch(() => setCampaigns([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load campaigns:', err);
+          setError('No se pudieron cargar las campañas');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   return (
@@ -74,7 +84,17 @@ export default function CampaignsListPage() {
           <p className="text-slate-400 text-sm mt-1">Gestiona tus campañas de marketplace</p>
         </div>
 
-        {loading ? (
+        {error ? (
+          <div className="text-center py-16">
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-sm text-purple-400 hover:underline"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div

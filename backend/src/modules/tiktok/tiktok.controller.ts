@@ -1,4 +1,14 @@
-import { Controller, Get, Delete, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  Query,
+  UseGuards,
+  Request,
+  Redirect,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { TikTokService } from './tiktok.service';
 import { AuthUser } from '../auth/jwt.strategy';
@@ -9,7 +19,14 @@ interface AuthRequest extends Request {
 
 @Controller('tiktok')
 export class TikTokController {
-  constructor(private tiktok: TikTokService) {}
+  private readonly logger = new Logger(TikTokController.name);
+  private readonly frontendUrl: string;
+  constructor(
+    private tiktok: TikTokService,
+    config: ConfigService,
+  ) {
+    this.frontendUrl = config.getOrThrow<string>('app.frontendUrl');
+  }
 
   @Get('auth-url')
   @UseGuards(AuthGuard('jwt'))
@@ -22,9 +39,12 @@ export class TikTokController {
   async callback(@Query('code') code: string, @Query('state') userId: string) {
     try {
       await this.tiktok.handleCallback(code, userId);
-      return { url: `${process.env.FRONTEND_URL}/settings?tt=connected` };
-    } catch {
-      return { url: `${process.env.FRONTEND_URL}/settings?tt=error` };
+      return { url: `${this.frontendUrl}/settings?tt=connected` };
+    } catch (err) {
+      this.logger.error(
+        `TikTok callback failed for user ${userId}: ${err instanceof Error ? err.message : err}`,
+      );
+      return { url: `${this.frontendUrl}/settings?tt=error` };
     }
   }
 

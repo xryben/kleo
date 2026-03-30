@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { instagramApi, youtubeApi, tiktokApi } from '@/lib/api';
 import { useAuth, logout } from '@/lib/useAuth';
+import { Modal } from '@/components/ui/modal';
 
 interface SocialStatus {
   connected: boolean;
@@ -49,6 +50,10 @@ function SettingsContent() {
   const [statuses, setStatuses] = useState<Record<string, SocialStatus>>({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState('');
+  const [disconnectTarget, setDisconnectTarget] = useState<{
+    key: string;
+    api: typeof instagramApi;
+  } | null>(null);
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
@@ -83,10 +88,12 @@ function SettingsContent() {
     window.location.href = data.url;
   }
 
-  async function handleDisconnect(key: string, api: typeof instagramApi) {
-    if (!confirm('¿Desconectar?')) return;
+  async function handleDisconnect() {
+    if (!disconnectTarget) return;
+    const { key, api } = disconnectTarget;
     await api.disconnect();
     setStatuses((s) => ({ ...s, [key]: { connected: false } }));
+    setDisconnectTarget(null);
   }
 
   return (
@@ -142,7 +149,7 @@ function SettingsContent() {
                     {!loading &&
                       (status?.connected ? (
                         <button
-                          onClick={() => handleDisconnect(p.key, p.api)}
+                          onClick={() => setDisconnectTarget({ key: p.key, api: p.api })}
                           className="text-xs text-red-400 hover:text-red-300"
                         >
                           Desconectar
@@ -173,6 +180,36 @@ function SettingsContent() {
           </button>
         </div>
       </main>
+
+      {/* Disconnect confirmation dialog */}
+      <Modal
+        open={!!disconnectTarget}
+        onOpenChange={(open) => {
+          if (!open) setDisconnectTarget(null);
+        }}
+        title="Desconectar red social"
+        description="¿Estás seguro de que quieres desconectar esta cuenta?"
+        footer={
+          <>
+            <button
+              onClick={() => setDisconnectTarget(null)}
+              className="text-sm text-slate-400 hover:text-white px-3 py-1.5"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg"
+            >
+              Desconectar
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">
+          Tendrás que volver a conectar tu cuenta para publicar clips en esta plataforma.
+        </p>
+      </Modal>
     </div>
   );
 }

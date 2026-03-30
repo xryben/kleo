@@ -1,4 +1,14 @@
-import { Controller, Get, Delete, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  Query,
+  UseGuards,
+  Request,
+  Redirect,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { YouTubeService } from './youtube.service';
 import { AuthUser } from '../auth/jwt.strategy';
@@ -9,7 +19,14 @@ interface AuthRequest extends Request {
 
 @Controller('youtube')
 export class YouTubeController {
-  constructor(private youtube: YouTubeService) {}
+  private readonly logger = new Logger(YouTubeController.name);
+  private readonly frontendUrl: string;
+  constructor(
+    private youtube: YouTubeService,
+    config: ConfigService,
+  ) {
+    this.frontendUrl = config.getOrThrow<string>('app.frontendUrl');
+  }
 
   @Get('auth-url')
   @UseGuards(AuthGuard('jwt'))
@@ -22,9 +39,12 @@ export class YouTubeController {
   async callback(@Query('code') code: string, @Query('state') userId: string) {
     try {
       await this.youtube.handleCallback(code, userId);
-      return { url: `${process.env.FRONTEND_URL}/settings?yt=connected` };
-    } catch {
-      return { url: `${process.env.FRONTEND_URL}/settings?yt=error` };
+      return { url: `${this.frontendUrl}/settings?yt=connected` };
+    } catch (err) {
+      this.logger.error(
+        `YouTube callback failed for user ${userId}: ${err instanceof Error ? err.message : err}`,
+      );
+      return { url: `${this.frontendUrl}/settings?yt=error` };
     }
   }
 

@@ -1,4 +1,14 @@
-import { Controller, Get, Delete, Query, UseGuards, Request, Redirect } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Delete,
+  Query,
+  UseGuards,
+  Request,
+  Redirect,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { InstagramService } from './instagram.service';
 import { User } from '@prisma/client';
@@ -9,7 +19,14 @@ interface AuthRequest extends Request {
 
 @Controller('instagram')
 export class InstagramController {
-  constructor(private instagram: InstagramService) {}
+  private readonly logger = new Logger(InstagramController.name);
+  private readonly frontendUrl: string;
+  constructor(
+    private instagram: InstagramService,
+    config: ConfigService,
+  ) {
+    this.frontendUrl = config.getOrThrow<string>('app.frontendUrl');
+  }
 
   @Get('auth-url')
   @UseGuards(AuthGuard('jwt'))
@@ -23,9 +40,12 @@ export class InstagramController {
     // state = userId passed when redirecting to IG auth
     try {
       await this.instagram.handleCallback(code, state);
-      return { url: `${process.env.FRONTEND_URL || 'http://localhost:4003'}/settings?ig=connected` };
-    } catch {
-      return { url: `${process.env.FRONTEND_URL || 'http://localhost:4003'}/settings?ig=error` };
+      return { url: `${this.frontendUrl}/settings?ig=connected` };
+    } catch (err) {
+      this.logger.error(
+        `Instagram callback failed for user ${state}: ${err instanceof Error ? err.message : err}`,
+      );
+      return { url: `${this.frontendUrl}/settings?ig=error` };
     }
   }
 

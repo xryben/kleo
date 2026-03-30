@@ -53,6 +53,7 @@ export default function MarketplacePage() {
   const auth = useAuth();
   const [clips, setClips] = useState<MarketplaceClip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [platform, setPlatform] = useState('Todas');
   const [category, setCategory] = useState('Todas');
   const [sort, setSort] = useState('cpm_desc');
@@ -60,7 +61,9 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
 
+    const controller = new AbortController();
     setLoading(true);
+    setError('');
     const params: Record<string, string> = {};
     if (platform !== 'Todas') params.platform = platform;
     if (category !== 'Todas') params.category = category;
@@ -69,8 +72,16 @@ export default function MarketplacePage() {
     marketplaceApi
       .list(params)
       .then(setClips)
-      .catch(() => setClips([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load marketplace clips:', err);
+          setError('No se pudieron cargar los clips');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, platform, category, sort]);
 
   return (
@@ -150,7 +161,17 @@ export default function MarketplacePage() {
           </select>
         </div>
 
-        {loading ? (
+        {error ? (
+          <div className="text-center py-16">
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-sm text-purple-400 hover:underline"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div

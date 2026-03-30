@@ -33,7 +33,10 @@ export default function NewCampaignPage() {
       .then((data: Project[]) =>
         setProjects(data.filter((p) => p.status === 'READY' && p.clips?.length > 0)),
       )
-      .catch(() => setProjects([]))
+      .catch((err) => {
+        console.error('Failed to load projects:', err);
+        setProjects([]);
+      })
       .finally(() => setLoading(false));
   }, [auth.isLoading, auth.isAuthenticated]);
 
@@ -60,8 +63,12 @@ export default function NewCampaignPage() {
         clipIds: selectedClips,
       });
       router.push(`/infoproductor/campaigns/${campaign.id}`);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al crear la campaña');
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Error al crear la campaña';
+      console.error('Campaign creation failed:', err);
+      setError(message);
     } finally {
       setSubmitting(false);
     }

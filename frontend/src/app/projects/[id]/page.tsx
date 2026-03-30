@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi, clipsApi, publishApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { useToast } from '@/components/ui/toast';
 
 interface SocialPublish {
   platform: 'INSTAGRAM' | 'YOUTUBE' | 'TIKTOK';
@@ -44,6 +45,7 @@ const STEP_LABELS: Record<string, string> = {
 export default function ProjectPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const auth = useAuth();
+  const { toast } = useToast();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedClip, setSelectedClip] = useState<Clip | null>(null);
@@ -78,8 +80,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     try {
       await publishApi.publish(clipId, platform);
       await load();
-    } catch {
-      alert(`Error al publicar en ${platform}. ¿Lo tienes conectado en Configuración?`);
+    } catch (err) {
+      console.error(`Publish to ${platform} failed:`, err);
+      toast(`Error al publicar en ${platform}. ¿Lo tienes conectado en Configuración?`, 'error');
     } finally {
       setPublishing(null);
     }

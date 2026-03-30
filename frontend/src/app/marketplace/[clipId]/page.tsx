@@ -55,7 +55,10 @@ export default function ClipDetailPage() {
     marketplaceApi
       .get(clipId)
       .then((data) => setClip(data))
-      .catch(() => setError('No se pudo cargar el clip'))
+      .catch((err) => {
+        console.error('Failed to load clip:', err);
+        setError('No se pudo cargar el clip');
+      })
       .finally(() => setLoading(false));
   }, [auth.isLoading, auth.isAuthenticated, clipId]);
 
@@ -65,8 +68,12 @@ export default function ClipDetailPage() {
     try {
       await marketplaceApi.claim(clipId);
       setClaimed(true);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al reclamar el clip');
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Error al reclamar el clip';
+      console.error('Claim failed:', err);
+      setError(message);
     } finally {
       setClaiming(false);
     }

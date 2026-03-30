@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { execFileSync } from 'child_process';
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'fs';
 import { join } from 'path';
@@ -14,10 +15,15 @@ export interface VerificationResult {
 @Injectable()
 export class VerificationService {
   private readonly logger = new Logger(VerificationService.name);
-  private uploadsPath = process.env.UPLOADS_PATH || '/var/www/cleo/uploads';
-  private tempDir = join(this.uploadsPath, '_verification_tmp');
+  private readonly uploadsPath: string;
+  private readonly tempDir: string;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.uploadsPath = config.get<string>('app.uploadsPath')!;
+    this.tempDir = join(this.uploadsPath, '_verification_tmp');
     if (!existsSync(this.tempDir)) mkdirSync(this.tempDir, { recursive: true });
   }
 
@@ -67,13 +73,25 @@ export class VerificationService {
       try {
         execFileSync(
           'yt-dlp',
-          ['-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best', '--merge-output-format', 'mp4', '-o', downloadedPath, '--', submission.socialUrl],
+          [
+            '-f',
+            'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            '--merge-output-format',
+            'mp4',
+            '-o',
+            downloadedPath,
+            '--',
+            submission.socialUrl,
+          ],
           { timeout: 180000 },
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         this.logger.error(`Failed to download video: ${msg}`);
-        await this.rejectSubmission(submissionId, `Could not download video from ${submission.platform}`);
+        await this.rejectSubmission(
+          submissionId,
+          `Could not download video from ${submission.platform}`,
+        );
         return {
           verified: false,
           method: 'no_match',
@@ -84,14 +102,24 @@ export class VerificationService {
 
       if (!existsSync(downloadedPath)) {
         await this.rejectSubmission(submissionId, 'Video download produced no output');
-        return { verified: false, method: 'no_match', confidence: 0, details: 'Download produced no file' };
+        return {
+          verified: false,
+          method: 'no_match',
+          confidence: 0,
+          details: 'Download produced no file',
+        };
       }
 
       // 3. Try metadata match first (fastest)
       const metadataResult = this.checkMetadata(downloadedPath, watermarkText);
       if (metadataResult) {
         await this.markVerified(submissionId);
-        return { verified: true, method: 'metadata_match', confidence: 1.0, details: 'Watermark found in video metadata' };
+        return {
+          verified: true,
+          method: 'metadata_match',
+          confidence: 1.0,
+          details: 'Watermark found in video metadata',
+        };
       }
 
       // 4. Extract frames and search for text watermark
@@ -113,7 +141,12 @@ export class VerificationService {
       const textFound = await this.searchFramesForWatermark(framesDir, watermarkText);
       if (textFound) {
         await this.markVerified(submissionId);
-        return { verified: true, method: 'text_match', confidence: 0.95, details: 'Watermark text detected in video frames' };
+        return {
+          verified: true,
+          method: 'text_match',
+          confidence: 0.95,
+          details: 'Watermark text detected in video frames',
+        };
       }
 
       // 5. Fallback: perceptual hash comparison
@@ -129,7 +162,10 @@ export class VerificationService {
           };
         }
 
-        await this.rejectSubmission(submissionId, `Content mismatch (similarity: ${(similarity * 100).toFixed(1)}%)`);
+        await this.rejectSubmission(
+          submissionId,
+          `Content mismatch (similarity: ${(similarity * 100).toFixed(1)}%)`,
+        );
         return {
           verified: false,
           method: 'no_match',
@@ -139,8 +175,12 @@ export class VerificationService {
       }
 
       await this.rejectSubmission(submissionId, 'Original clip file not found for comparison');
-      return { verified: false, method: 'no_match', confidence: 0, details: 'Original clip file missing' };
-
+      return {
+        verified: false,
+        method: 'no_match',
+        confidence: 0,
+        details: 'Original clip file missing',
+      };
     } finally {
       // Cleanup temp files
       this.cleanupDir(workDir);
@@ -151,16 +191,32 @@ export class VerificationService {
     try {
       const output = execFileSync(
         'ffprobe',
-        ['-v', 'quiet', '-show_entries', 'format_tags=comment', '-of', 'default=noprint_wrappers=1:nokey=1', videoPath],
+        [
+          '-v',
+          'quiet',
+          '-show_entries',
+          'format_tags=comment',
+          '-of',
+          'default=noprint_wrappers=1:nokey=1',
+          videoPath,
+        ],
         { timeout: 15000 },
-      ).toString().trim();
+      )
+        .toString()
+        .trim();
       return output.includes(watermarkText);
-    } catch {
+    } catch (err) {
+      this.logger.warn(
+        `Metadata check failed for ${videoPath}: ${err instanceof Error ? err.message : err}`,
+      );
       return false;
     }
   }
 
-  private async searchFramesForWatermark(framesDir: string, watermarkText: string): Promise<boolean> {
+  private async searchFramesForWatermark(
+    framesDir: string,
+    watermarkText: string,
+  ): Promise<boolean> {
     if (!existsSync(framesDir)) return false;
 
     const frames = readdirSync(framesDir).filter((f) => f.endsWith('.png'));
@@ -183,7 +239,8 @@ export class VerificationService {
         const left = metadata.width - regionWidth;
         const top = metadata.height - regionHeight;
 
-        const region = await sharp.default(framePath)
+        const region = await sharp
+          .default(framePath)
           .extract({ left, top, width: regionWidth, height: regionHeight })
           .greyscale()
           .raw()
@@ -200,7 +257,9 @@ export class VerificationService {
         const ratio = subtleBrightPixels / region.length;
         // If we detect a pattern consistent with overlaid text (small bright area)
         if (ratio > 0.01 && ratio < 0.15) {
-          this.logger.log(`Watermark pattern detected in ${frame} (bright ratio: ${ratio.toFixed(3)})`);
+          this.logger.log(
+            `Watermark pattern detected in ${frame} (bright ratio: ${ratio.toFixed(3)})`,
+          );
           return true;
         }
       }
@@ -211,7 +270,11 @@ export class VerificationService {
     return false;
   }
 
-  async comparePerceptualHash(originalPath: string, submittedPath: string, workDir: string): Promise<number> {
+  async comparePerceptualHash(
+    originalPath: string,
+    submittedPath: string,
+    workDir: string,
+  ): Promise<number> {
     const origThumb = join(workDir, 'orig_thumb.png');
     const subThumb = join(workDir, 'sub_thumb.png');
 
@@ -223,8 +286,38 @@ export class VerificationService {
       const origSeek = Math.max(1, Math.floor(origDuration * 0.25));
       const subSeek = Math.max(1, Math.floor(subDuration * 0.25));
 
-      execFileSync('ffmpeg', ['-i', originalPath, '-ss', String(origSeek), '-frames:v', '1', '-s', '64x64', origThumb, '-y'], { timeout: 15000 });
-      execFileSync('ffmpeg', ['-i', submittedPath, '-ss', String(subSeek), '-frames:v', '1', '-s', '64x64', subThumb, '-y'], { timeout: 15000 });
+      execFileSync(
+        'ffmpeg',
+        [
+          '-i',
+          originalPath,
+          '-ss',
+          String(origSeek),
+          '-frames:v',
+          '1',
+          '-s',
+          '64x64',
+          origThumb,
+          '-y',
+        ],
+        { timeout: 15000 },
+      );
+      execFileSync(
+        'ffmpeg',
+        [
+          '-i',
+          submittedPath,
+          '-ss',
+          String(subSeek),
+          '-frames:v',
+          '1',
+          '-s',
+          '64x64',
+          subThumb,
+          '-y',
+        ],
+        { timeout: 15000 },
+      );
 
       if (!existsSync(origThumb) || !existsSync(subThumb)) return 0;
 
@@ -237,9 +330,10 @@ export class VerificationService {
       const maxBits = origHash.length * 4; // hex chars * 4 bits each
       const similarity = 1 - distance / maxBits;
 
-      this.logger.log(`pHash comparison: distance=${distance}, similarity=${(similarity * 100).toFixed(1)}%`);
+      this.logger.log(
+        `pHash comparison: distance=${distance}, similarity=${(similarity * 100).toFixed(1)}%`,
+      );
       return similarity;
-
     } catch (err) {
       this.logger.error(`pHash comparison failed: ${err instanceof Error ? err.message : err}`);
       return 0;
@@ -247,10 +341,17 @@ export class VerificationService {
   }
 
   private getVideoDuration(videoPath: string): number {
-    const output = execFileSync(
-      'ffprobe',
-      ['-v', 'quiet', '-show_entries', 'format=duration', '-of', 'csv=p=0', videoPath],
-    ).toString().trim();
+    const output = execFileSync('ffprobe', [
+      '-v',
+      'quiet',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'csv=p=0',
+      videoPath,
+    ])
+      .toString()
+      .trim();
     return parseFloat(output) || 10;
   }
 

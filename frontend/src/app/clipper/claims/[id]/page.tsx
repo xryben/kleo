@@ -116,7 +116,10 @@ export default function ClaimDetailPage() {
           setUrls(filled);
         }
       })
-      .catch(() => setError('No se pudo cargar el claim'))
+      .catch((err) => {
+        console.error('Failed to load claim:', err);
+        setError('No se pudo cargar el claim');
+      })
       .finally(() => setLoading(false));
   }, [auth.isLoading, auth.isAuthenticated, claimId]);
 
@@ -167,8 +170,12 @@ export default function ClaimDetailPage() {
       const updated = await claimsApi.submitMulti(claimId, payload);
       setClaim(updated);
       setSuccess('URLs enviadas correctamente. Pendiente de verificación.');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al enviar las URLs');
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Error al enviar las URLs';
+      console.error('URL submission failed:', err);
+      setError(message);
     } finally {
       setSubmitting(false);
     }

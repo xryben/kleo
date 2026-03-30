@@ -60,7 +60,10 @@ export default function CampaignDetailPage() {
     campaignsApi
       .get(campaignId)
       .then(setCampaign)
-      .catch(() => setError('No se pudo cargar la campaña'))
+      .catch((err) => {
+        console.error('Failed to load campaign:', err);
+        setError('No se pudo cargar la campaña');
+      })
       .finally(() => setLoading(false));
   }, [auth.isLoading, auth.isAuthenticated, campaignId]);
 

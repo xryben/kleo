@@ -8,6 +8,7 @@ import {
   RawBodyRequest,
   Headers,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -20,6 +21,7 @@ interface AuthRequest extends Request {
 
 @Controller('payments')
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
   constructor(
     private paymentsService: PaymentsService,
     private config: ConfigService,
@@ -36,11 +38,7 @@ export class PaymentsController {
   @Post('campaigns/deposit')
   @UseGuards(AuthGuard('jwt'))
   createDeposit(@Request() req: AuthRequest, @Body() dto: DepositDto) {
-    return this.paymentsService.createCampaignDeposit(
-      req.user.id,
-      dto.campaignId,
-      dto.amountCents,
-    );
+    return this.paymentsService.createCampaignDeposit(req.user.id, dto.campaignId, dto.amountCents);
   }
 
   // ─── Clipper: Connect endpoints ─────────────────────────────────
@@ -87,17 +85,18 @@ export class PaymentsController {
     const stripe = this.paymentsService.getStripeInstance();
     const webhookSecret = this.config.get<string>('STRIPE_WEBHOOK_SECRET');
 
-    if (!webhookSecret)
-      throw new BadRequestException('Webhook secret not configured');
+    if (!webhookSecret) throw new BadRequestException('Webhook secret not configured');
 
     const rawBody = req.rawBody;
-    if (!rawBody)
-      throw new BadRequestException('Missing raw body');
+    if (!rawBody) throw new BadRequestException('Missing raw body');
 
     let event: import('stripe').Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
-    } catch {
+    } catch (err) {
+      this.logger.error(
+        `Stripe webhook signature validation failed: ${err instanceof Error ? err.message : err}`,
+      );
       throw new BadRequestException('Invalid webhook signature');
     }
 
