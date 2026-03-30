@@ -1,0 +1,191 @@
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: ['./src/**/*.{ts,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        // Brand — purple core
+        primary: {
+          DEFAULT: '#7C3AED',
+          50: '#FAF5FF',
+          100: '#F3E8FF',
+          200: '#E9D5FF',
+          300: '#D8B4FE',
+          400: '#C084FC',
+          500: '#A855F7',
+          600: '#7C3AED',
+          700: '#6D28D9',
+          800: '#5B21B6',
+          900: '#4C1D95',
+          950: '#2E1065',
+        },
+        // Accent — cyan/teal for contrast pops
+        accent: {
+          DEFAULT: '#06B6D4',
+          50: '#ECFEFF',
+          100: '#CFFAFE',
+          200: '#A5F3FC',
+          300: '#67E8F9',
+          400: '#22D3EE',
+          500: '#06B6D4',
+          600: '#0891B2',
+          700: '#0E7490',
+          800: '#155E75',
+          900: '#164E63',
+        },
+        // Surfaces — deep purple-black dark theme
+        surface: {
+          DEFAULT: '#0F0A1E',
+          base: '#0F0A1E',
+          raised: '#181230',
+          overlay: '#1E1740',
+          sunken: '#0A0716',
+          border: '#2D2660',
+          'border-subtle': '#211A45',
+        },
+        // Semantic colors
+        success: {
+          DEFAULT: '#10B981',
+          50: '#ECFDF5',
+          100: '#D1FAE5',
+          400: '#34D399',
+          500: '#10B981',
+          600: '#059669',
+          900: '#064E3B',
+        },
+        warning: {
+          DEFAULT: '#F59E0B',
+          50: '#FFFBEB',
+          100: '#FEF3C7',
+          400: '#FBBF24',
+          500: '#F59E0B',
+          600: '#D97706',
+          900: '#78350F',
+        },
+        error: {
+          DEFAULT: '#EF4444',
+          50: '#FEF2F2',
+          100: '#FEE2E2',
+          400: '#F87171',
+          500: '#EF4444',
+          600: '#DC2626',
+          900: '#7F1D1D',
+        },
+        info: {
+          DEFAULT: '#3B82F6',
+          50: '#EFF6FF',
+          100: '#DBEAFE',
+          400: '#60A5FA',
+          500: '#3B82F6',
+          600: '#2563EB',
+          900: '#1E3A5F',
+        },
+        // Text on dark
+        content: {
+          DEFAULT: '#F1F5F9',
+          primary: '#F1F5F9',
+          secondary: '#94A3B8',
+          tertiary: '#64748B',
+          inverse: '#0F172A',
+          disabled: '#475569',
+        },
+      },
+      fontFamily: {
+        sans: [
+          'Inter',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'sans-serif',
+        ],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+      },
+      fontSize: {
+        'display': ['3rem', { lineHeight: '1.1', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'heading-1': ['2rem', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'heading-2': ['1.5rem', { lineHeight: '1.3', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'heading-3': ['1.25rem', { lineHeight: '1.4', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'heading-4': ['1.125rem', { lineHeight: '1.4', fontWeight: '600' }],
+        'body-lg': ['1rem', { lineHeight: '1.6' }],
+        'body': ['0.875rem', { lineHeight: '1.5' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.5' }],
+        'caption': ['0.75rem', { lineHeight: '1.4' }],
+        'label': ['0.75rem', { lineHeight: '1', letterSpacing: '0.04em', fontWeight: '500' }],
+      },
+      borderRadius: {
+        'sm': '6px',
+        'DEFAULT': '8px',
+        'md': '10px',
+        'lg': '12px',
+        'xl': '16px',
+        '2xl': '20px',
+        '3xl': '24px',
+      },
+      boxShadow: {
+        'xs': '0 1px 2px rgba(0, 0, 0, 0.3)',
+        'sm': '0 2px 4px rgba(0, 0, 0, 0.3)',
+        'DEFAULT': '0 4px 12px rgba(0, 0, 0, 0.4)',
+        'md': '0 8px 24px rgba(0, 0, 0, 0.4)',
+        'lg': '0 16px 48px rgba(0, 0, 0, 0.5)',
+        'xl': '0 24px 64px rgba(0, 0, 0, 0.6)',
+        'glow': '0 0 20px rgba(124, 58, 237, 0.3)',
+        'glow-sm': '0 0 10px rgba(124, 58, 237, 0.2)',
+        'glow-accent': '0 0 20px rgba(6, 182, 212, 0.3)',
+        'glow-success': '0 0 20px rgba(16, 185, 129, 0.3)',
+        'inner': 'inset 0 1px 2px rgba(0, 0, 0, 0.3)',
+      },
+      backgroundImage: {
+        'gradient-primary': 'linear-gradient(135deg, #7C3AED 0%, #A855F7 100%)',
+        'gradient-accent': 'linear-gradient(135deg, #06B6D4 0%, #3B82F6 100%)',
+        'gradient-surface': 'linear-gradient(180deg, #1A1333 0%, #0F0A1E 100%)',
+        'gradient-card': 'linear-gradient(180deg, rgba(26, 19, 51, 0.8) 0%, rgba(15, 10, 30, 0.4) 100%)',
+        'gradient-glow': 'radial-gradient(ellipse at center, rgba(124, 58, 237, 0.15) 0%, transparent 70%)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.2s ease-out',
+        'fade-up': 'fadeUp 0.3s ease-out',
+        'slide-in-right': 'slideInRight 0.3s ease-out',
+        'slide-in-bottom': 'slideInBottom 0.3s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'shimmer': 'shimmer 2s infinite linear',
+        'spin-slow': 'spin 2s linear infinite',
+        'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        fadeUp: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(16px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideInBottom: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        scaleIn: {
+          '0%': { opacity: '0', transform: 'scale(0.95)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        pulseSoft: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.7' },
+        },
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

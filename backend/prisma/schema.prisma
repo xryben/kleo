@@ -1,0 +1,425 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      Plan     @default(FREE)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  projects  VideoProject[]
+  campaigns Campaign[]
+
+  @@map("tenants")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+model User {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(OWNER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userType          UserType @default(INFOPRODUCTOR)
+  stripeCustomerId  String?
+  stripeConnectId   String?
+
+  tenant           Tenant?           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects         VideoProject[]
+  instagramAccount InstagramAccount?
+  youtubeAccount   YouTubeAccount?
+  tiktokAccount    TikTokAccount?
+  campaigns        Campaign[]
+  clipClaims       ClipClaim[]
+  earnings         Earning[]
+  payouts          Payout[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OWNER
+  MEMBER
+}
+
+enum UserType {
+  INFOPRODUCTOR
+  CLIPPER
+  BOTH
+}
+
+model VideoProject {
+  id         String        @id @default(cuid())
+  tenantId   String
+  userId     String
+  title      String
+  sourceType SourceType
+  sourceUrl  String?
+  localPath  String?
+  status     ProjectStatus @default(PENDING)
+  duration   Float?
+  transcript String?
+  error      String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clips  Clip[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@map("video_projects")
+}
+
+enum SourceType {
+  YOUTUBE
+  UPLOAD
+}
+
+enum ProjectStatus {
+  PENDING
+  DOWNLOADING
+  TRANSCRIBING
+  ANALYZING
+  CUTTING
+  READY
+  FAILED
+}
+
+model Clip {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  startTime   Float
+  endTime     Float
+  duration    Float
+  filePath    String
+  thumbnail   String?
+  createdAt   DateTime @default(now())
+
+  project       VideoProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  publishes     SocialPublish[]
+  campaignClips CampaignClip[]
+  watermarks    ClipWatermark[]
+
+  @@index([projectId])
+  @@map("clips")
+}
+
+model SocialPublish {
+  id          String        @id @default(cuid())
+  clipId      String
+  platform    SocialPlatform
+  status      PublishStatus @default(PENDING)
+  postId      String?       // ID del post en la plataforma
+  postUrl     String?
+  error       String?
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  clip Clip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@unique([clipId, platform])
+  @@map("social_publishes")
+}
+
+enum SocialPlatform {
+  INSTAGRAM
+  YOUTUBE
+  TIKTOK
+}
+
+enum PublishStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+model InstagramAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  igUserId     String
+  username     String
+  accessToken  String
+  tokenExpires DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("instagram_accounts")
+}
+
+model YouTubeAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  channelId    String
+  channelName  String
+  accessToken  String
+  refreshToken String
+  tokenExpires DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("youtube_accounts")
+}
+
+model TikTokAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  openId       String
+  username     String
+  accessToken  String
+  refreshToken String
+  tokenExpires DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("tiktok_accounts")
+}
+
+// ─── Marketplace Enums ───────────────────────────────────────────
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  EXHAUSTED
+}
+
+enum ClaimStatus {
+  CLAIMED
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum EarningStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum WatermarkMethod {
+  TEXT_OVERLAY
+  METADATA
+  PERCEPTUAL_HASH
+}
+
+// ─── Marketplace Models ──────────────────────────────────────────
+
+model Campaign {
+  id          String         @id @default(cuid())
+  tenantId    String
+  userId      String
+  title       String
+  description String?
+  budgetCents Int
+  cpmCents    Int
+  status      CampaignStatus @default(DRAFT)
+  startDate   DateTime?
+  endDate     DateTime?
+  spentCents  Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clips    CampaignClip[]
+  deposits CampaignDeposit[]
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignDeposit {
+  id              String   @id @default(cuid())
+  campaignId      String
+  stripeSessionId String   @unique
+  amountCents     Int
+  createdAt       DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@map("campaign_deposits")
+}
+
+model CampaignClip {
+  id         String   @id @default(cuid())
+  campaignId String
+  clipId     String
+  isPublic   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign    @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  clip     Clip        @relation(fields: [clipId], references: [id], onDelete: Cascade)
+  claims   ClipClaim[]
+
+  @@unique([campaignId, clipId])
+  @@index([clipId])
+  @@map("campaign_clips")
+}
+
+model ClipClaim {
+  id               String      @id @default(cuid())
+  campaignClipId   String
+  clipperId        String
+  status           ClaimStatus @default(CLAIMED)
+  earnedCents      Int         @default(0)
+  flaggedForReview Boolean     @default(false)
+  payoutHoldUntil  DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  campaignClip CampaignClip       @relation(fields: [campaignClipId], references: [id], onDelete: Cascade)
+  clipper      User               @relation(fields: [clipperId], references: [id], onDelete: Cascade)
+  submissions  ClipSubmission[]
+  earning      Earning?
+  adjustments  EarningAdjustment[]
+
+  @@unique([campaignClipId, clipperId])
+  @@index([campaignClipId])
+  @@index([clipperId])
+  @@index([status])
+  @@map("clip_claims")
+}
+
+model ClipSubmission {
+  id              String         @id @default(cuid())
+  claimId         String
+  socialUrl       String
+  platform        SocialPlatform
+  externalPostId  String?
+  viewCount       Int            @default(0)
+  lastViewCheck   DateTime?
+  verifiedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  claim     ClipClaim      @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  snapshots ViewSnapshot[]
+
+  @@unique([claimId, platform])
+  @@index([claimId])
+  @@index([platform])
+  @@map("clip_submissions")
+}
+
+model ViewSnapshot {
+  id           String   @id @default(cuid())
+  submissionId String
+  viewCount    Int
+  flagged      Boolean  @default(false)
+  flagReason   String?
+  checkedAt    DateTime @default(now())
+
+  submission ClipSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId])
+  @@map("view_snapshots")
+}
+
+model Earning {
+  id          String        @id @default(cuid())
+  clipperId   String
+  claimId     String        @unique
+  amountCents Int
+  status      EarningStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  clipper User      @relation(fields: [clipperId], references: [id], onDelete: Cascade)
+  claim   ClipClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([clipperId])
+  @@index([status])
+  @@map("earnings")
+}
+
+model EarningAdjustment {
+  id          String   @id @default(cuid())
+  claimId     String
+  deltaCents  Int
+  reason      String
+  createdAt   DateTime @default(now())
+
+  claim ClipClaim @relation(fields: [claimId], references: [id], onDelete: Cascade)
+
+  @@index([claimId])
+  @@map("earning_adjustments")
+}
+
+model Payout {
+  id               String       @id @default(cuid())
+  clipperId        String
+  amountCents      Int
+  stripeTransferId String?
+  status           PayoutStatus @default(PENDING)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  clipper User @relation(fields: [clipperId], references: [id], onDelete: Cascade)
+
+  @@index([clipperId])
+  @@index([status])
+  @@map("payouts")
+}
+
+model ClipWatermark {
+  id        String          @id @default(cuid())
+  clipId    String
+  uuid      String          @unique @default(cuid())
+  method    WatermarkMethod
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  clip Clip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  @@index([clipId])
+  @@map("clip_watermarks")
+}

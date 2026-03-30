@@ -1,0 +1,23 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/tenants/[id]/page": "app/admin/tenants/[id]/page.js",
+  "/admin/tenants/new/page": "app/admin/tenants/new/page.js",
+  "/admin/tenants/page": "app/admin/tenants/page.js",
+  "/clipper/claims/[id]/page": "app/clipper/claims/[id]/page.js",
+  "/clipper/claims/page": "app/clipper/claims/page.js",
+  "/clipper/dashboard/page": "app/clipper/dashboard/page.js",
+  "/clipper/earnings/page": "app/clipper/earnings/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/infoproductor/campaigns/[id]/page": "app/infoproductor/campaigns/[id]/page.js",
+  "/infoproductor/campaigns/new/page": "app/infoproductor/campaigns/new/page.js",
+  "/infoproductor/campaigns/page": "app/infoproductor/campaigns/page.js",
+  "/login/page": "app/login/page.js",
+  "/marketplace/[clipId]/page": "app/marketplace/[clipId]/page.js",
+  "/marketplace/page": "app/marketplace/page.js",
+  "/page": "app/page.js",
+  "/projects/[id]/page": "app/projects/[id]/page.js",
+  "/projects/new/page": "app/projects/new/page.js",
+  "/register/page": "app/register/page.js",
+  "/settings/page": "app/settings/page.js"
+}
