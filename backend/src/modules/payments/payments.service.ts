@@ -80,13 +80,20 @@ export class PaymentsService {
 
     // Ensure user has a Stripe customer
     let user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user!.stripeCustomerId) {
+    if (!user) throw new NotFoundException('User not found');
+
+    if (!user.stripeCustomerId) {
       await this.createCustomer(userId);
       user = await this.prisma.user.findUnique({ where: { id: userId } });
+      if (!user?.stripeCustomerId) {
+        throw new BadRequestException(
+          'Failed to create Stripe customer for user',
+        );
+      }
     }
 
     const session = await this.requireStripe().checkout.sessions.create({
-      customer: user!.stripeCustomerId!,
+      customer: user.stripeCustomerId,
       payment_method_types: ['card'],
       line_items: [
         {
