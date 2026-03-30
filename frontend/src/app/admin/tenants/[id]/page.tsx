@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusTextColor } from '@/lib/design-tokens';
 
 interface TenantDetail {
   id: string;
@@ -29,15 +30,6 @@ const PLAN_COLORS: Record<string, string> = {
   PRO: 'text-purple-300',
   ENTERPRISE: 'text-yellow-300',
 };
-const STATUS_COLORS: Record<string, string> = {
-  READY: 'text-green-400',
-  FAILED: 'text-red-400',
-  PENDING: 'text-slate-400',
-  DOWNLOADING: 'text-blue-400',
-  TRANSCRIBING: 'text-yellow-400',
-  ANALYZING: 'text-orange-400',
-  CUTTING: 'text-purple-400',
-};
 
 export default function TenantDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -50,13 +42,18 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
+    const controller = new AbortController();
     adminApi
       .getTenant(params.id)
       .then((data) => {
+        if (controller.signal.aborted) return;
         setTenant(data);
         setEditForm({ name: data.name, plan: data.plan, active: data.active });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, params.id]);
 
   async function handleSave() {
@@ -97,7 +94,11 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin/tenants" className="text-slate-400 hover:text-white">
+        <Link
+          href="/admin/tenants"
+          className="text-slate-400 hover:text-white"
+          aria-label="Volver a tenants"
+        >
           ←
         </Link>
         <div className="flex-1">
@@ -233,7 +234,7 @@ export default function TenantDetailPage({ params }: { params: { id: string } })
                 </div>
                 <div className="flex items-center gap-3 text-sm">
                   <span className="text-slate-400">{p._count.clips} clips</span>
-                  <span className={STATUS_COLORS[p.status] || 'text-slate-400'}>{p.status}</span>
+                  <span className={statusTextColor(p.status)}>{p.status}</span>
                 </div>
               </div>
             ))}

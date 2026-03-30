@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { adminApi } from '@/lib/api';
 import { useAuth, logout } from '@/lib/useAuth';
+import { statusTextColor } from '@/lib/design-tokens';
 
 interface Stats {
   totals: {
@@ -25,16 +26,6 @@ interface Stats {
   }>;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  READY: 'text-green-400',
-  FAILED: 'text-red-400',
-  PENDING: 'text-slate-400',
-  DOWNLOADING: 'text-blue-400',
-  TRANSCRIBING: 'text-yellow-400',
-  ANALYZING: 'text-orange-400',
-  CUTTING: 'text-purple-400',
-};
-
 export default function AdminPage() {
   const router = useRouter();
   const auth = useAuth({ requiredRole: 'SUPER_ADMIN' });
@@ -43,10 +34,16 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
+    const controller = new AbortController();
     adminApi
       .stats()
-      .then(setStats)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!controller.signal.aborted) setStats(data);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   if (loading)
@@ -110,11 +107,7 @@ export default function AdminPage() {
             <div className="flex flex-wrap gap-3">
               {Object.entries(stats.projectsByStatus).map(([status, count]) => (
                 <div key={status} className="flex items-center gap-1.5">
-                  <span
-                    className={`text-sm font-medium ${STATUS_COLORS[status] || 'text-slate-300'}`}
-                  >
-                    {status}
-                  </span>
+                  <span className={`text-sm font-medium ${statusTextColor(status)}`}>{status}</span>
                   <span className="text-white font-bold text-sm">{count}</span>
                 </div>
               ))}
@@ -142,7 +135,7 @@ export default function AdminPage() {
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <span className="text-slate-400">{p._count.clips} clips</span>
-                  <span className={STATUS_COLORS[p.status] || 'text-slate-400'}>{p.status}</span>
+                  <span className={statusTextColor(p.status)}>{p.status}</span>
                 </div>
               </div>
             ))}

@@ -27,17 +27,22 @@ export default function NewCampaignPage() {
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
-
+    const controller = new AbortController();
     projectsApi
       .list()
-      .then((data: Project[]) =>
-        setProjects(data.filter((p) => p.status === 'READY' && p.clips?.length > 0)),
-      )
+      .then((data: Project[]) => {
+        if (controller.signal.aborted) return;
+        setProjects(data.filter((p) => p.status === 'READY' && p.clips?.length > 0));
+      })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         console.error('Failed to load projects:', err);
         setProjects([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   function toggleClip(clipId: string) {

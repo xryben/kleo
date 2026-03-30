@@ -11,13 +11,13 @@
 // ─── Layout Constants ────────────────────────────────────────────
 export const layout = {
   maxWidth: {
-    form: '56rem',     // max-w-4xl — forms, detail pages
-    default: '64rem',  // max-w-5xl — standard pages
-    wide: '72rem',     // max-w-6xl — grid pages (marketplace)
-    full: '80rem',     // max-w-7xl — admin dashboards
+    form: '56rem', // max-w-4xl — forms, detail pages
+    default: '64rem', // max-w-5xl — standard pages
+    wide: '72rem', // max-w-6xl — grid pages (marketplace)
+    full: '80rem', // max-w-7xl — admin dashboards
   },
   sidebar: {
-    width: '16rem',         // 256px expanded
+    width: '16rem', // 256px expanded
     collapsedWidth: '4rem', // 64px collapsed
   },
 } as const;
@@ -25,13 +25,27 @@ export const layout = {
 // ─── Status Colors (shared across all entities) ──────────────────
 export type EntityStatus =
   // Clip statuses
-  | 'DOWNLOADING' | 'TRANSCRIBING' | 'ANALYZING' | 'CUTTING' | 'READY' | 'ERROR'
+  | 'DOWNLOADING'
+  | 'TRANSCRIBING'
+  | 'ANALYZING'
+  | 'CUTTING'
+  | 'READY'
+  | 'ERROR'
   // Campaign statuses
-  | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'DRAFT'
+  | 'ACTIVE'
+  | 'PAUSED'
+  | 'COMPLETED'
+  | 'DRAFT'
   // Claim statuses
-  | 'CLAIMED' | 'SUBMITTED' | 'VERIFIED' | 'REJECTED'
+  | 'CLAIMED'
+  | 'SUBMITTED'
+  | 'VERIFIED'
+  | 'REJECTED'
   // Project statuses
-  | 'PROCESSING' | 'DONE' | 'FAILED';
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'DONE'
+  | 'FAILED';
 
 export const statusStyles: Record<string, { bg: string; text: string; label?: string }> = {
   // Processing pipeline
@@ -55,17 +69,39 @@ export const statusStyles: Record<string, { bg: string; text: string; label?: st
   REJECTED: { bg: 'bg-error-500/15', text: 'text-error-400', label: 'Rechazado' },
 
   // Project
+  PENDING: { bg: 'bg-content-disabled/15', text: 'text-content-tertiary', label: 'En cola' },
   PROCESSING: { bg: 'bg-info-500/15', text: 'text-info-400', label: 'Procesando' },
   DONE: { bg: 'bg-success-500/15', text: 'text-success-400', label: 'Completo' },
   FAILED: { bg: 'bg-error-500/15', text: 'text-error-400', label: 'Fallido' },
 };
 
+/** Get the text color class for a status, with fallback. */
+export function statusTextColor(status: string): string {
+  return statusStyles[status]?.text ?? 'text-slate-400';
+}
+
+/** Get the combined bg + text classes for a status badge, with fallback. */
+export function statusBadgeClasses(status: string): string {
+  const s = statusStyles[status];
+  return s ? `${s.bg} ${s.text}` : 'bg-slate-700 text-slate-400';
+}
+
+/** Get the display label for a status, with fallback. */
+export function statusLabel(status: string): string {
+  return statusStyles[status]?.label ?? status;
+}
+
 // ─── Platform Config ─────────────────────────────────────────────
-export const platforms = {
+export const platforms: Record<string, { icon: string; label: string; color: string }> = {
   INSTAGRAM: { icon: '📸', label: 'Instagram', color: 'text-pink-400' },
   YOUTUBE: { icon: '▶️', label: 'YouTube', color: 'text-error-400' },
   TIKTOK: { icon: '🎵', label: 'TikTok', color: 'text-accent-400' },
-} as const;
+};
+
+/** Get the icon emoji for a platform, with fallback. */
+export function platformIcon(platform: string): string {
+  return platforms[platform]?.icon ?? '📱';
+}
 
 // ─── Z-Index Scale ───────────────────────────────────────────────
 export const zIndex = {

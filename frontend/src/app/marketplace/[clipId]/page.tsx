@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { marketplaceApi, clipsApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { platformIcon } from '@/lib/design-tokens';
 
 interface ClipDetail {
   id: string;
@@ -32,12 +33,6 @@ interface ClipDetail {
   };
 }
 
-const PLATFORM_ICONS: Record<string, string> = {
-  INSTAGRAM: '📸',
-  YOUTUBE: '▶️',
-  TIKTOK: '🎵',
-};
-
 export default function ClipDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -51,15 +46,21 @@ export default function ClipDetailPage() {
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
-
+    const controller = new AbortController();
     marketplaceApi
       .get(clipId)
-      .then((data) => setClip(data))
+      .then((data) => {
+        if (!controller.signal.aborted) setClip(data);
+      })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         console.error('Failed to load clip:', err);
         setError('No se pudo cargar el clip');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, clipId]);
 
   async function handleClaim() {
@@ -253,7 +254,7 @@ export default function ClipDetailPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-400">Plataforma</span>
                   <span className="text-white">
-                    {PLATFORM_ICONS[clip.platform] || '📱'} {clip.platform}
+                    {platformIcon(clip.platform)} {clip.platform}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">

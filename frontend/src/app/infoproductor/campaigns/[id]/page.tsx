@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { campaignsApi, clipsApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusBadgeClasses, statusLabel } from '@/lib/design-tokens';
 
 interface CampaignDetail {
   id: string;
@@ -31,20 +32,6 @@ interface CampaignDetail {
   }[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-500/20 text-green-400',
-  PAUSED: 'bg-yellow-500/20 text-yellow-400',
-  COMPLETED: 'bg-blue-500/20 text-blue-400',
-  DRAFT: 'bg-slate-700 text-slate-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Activa',
-  PAUSED: 'Pausada',
-  COMPLETED: 'Completada',
-  DRAFT: 'Borrador',
-};
-
 export default function CampaignDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -56,15 +43,21 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
-
+    const controller = new AbortController();
     campaignsApi
       .get(campaignId)
-      .then(setCampaign)
+      .then((data) => {
+        if (!controller.signal.aborted) setCampaign(data);
+      })
       .catch((err) => {
+        if (controller.signal.aborted) return;
         console.error('Failed to load campaign:', err);
         setError('No se pudo cargar la campaña');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, campaignId]);
 
   if (loading) {
@@ -140,9 +133,9 @@ export default function CampaignDetailPage() {
         <div className="flex items-center gap-4 mb-6">
           <h1 className="text-2xl font-bold text-white">{campaign.title}</h1>
           <span
-            className={`text-xs font-medium px-3 py-1.5 rounded-full ${STATUS_COLORS[campaign.status] || 'bg-slate-700 text-slate-400'}`}
+            className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusBadgeClasses(campaign.status)}`}
           >
-            {STATUS_LABELS[campaign.status] || campaign.status}
+            {statusLabel(campaign.status)}
           </span>
         </div>
 

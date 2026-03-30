@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clipperApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusTextColor, statusLabel } from '@/lib/design-tokens';
 
 interface DashboardData {
   totalEarnings: number;
@@ -17,20 +18,6 @@ interface DashboardData {
     createdAt: string;
   }[];
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  CLAIMED: 'text-blue-400',
-  SUBMITTED: 'text-yellow-400',
-  VERIFIED: 'text-green-400',
-  REJECTED: 'text-red-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  CLAIMED: 'Reclamado',
-  SUBMITTED: 'Enviado',
-  VERIFIED: 'Verificado',
-  REJECTED: 'Rechazado',
-};
 
 export default function ClipperDashboardPage() {
   const router = useRouter();
@@ -188,10 +175,8 @@ export default function ClipperDashboardPage() {
                             ${claim.earnings.toFixed(2)}
                           </span>
                         )}
-                        <span
-                          className={`font-medium ${STATUS_COLORS[claim.status] || 'text-slate-400'}`}
-                        >
-                          {STATUS_LABELS[claim.status] || claim.status}
+                        <span className={`font-medium ${statusTextColor(claim.status)}`}>
+                          {statusLabel(claim.status)}
                         </span>
                         <span className="text-slate-500">→</span>
                       </div>

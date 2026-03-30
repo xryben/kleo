@@ -7,7 +7,12 @@ import { adminApi } from '@/lib/api';
 export default function NewTenantPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    name: '', slug: '', ownerName: '', ownerEmail: '', ownerPassword: '', plan: 'FREE',
+    name: '',
+    slug: '',
+    ownerName: '',
+    ownerEmail: '',
+    ownerPassword: '',
+    plan: 'FREE',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +20,14 @@ export default function NewTenantPage() {
   function set(key: string, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
     if (key === 'name') {
-      setForm((f) => ({ ...f, name: value, slug: value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') }));
+      setForm((f) => ({
+        ...f,
+        name: value,
+        slug: value
+          .toLowerCase()
+          .replace(/\s+/g, '-')
+          .replace(/[^a-z0-9-]/g, ''),
+      }));
     }
   }
 
@@ -37,14 +49,25 @@ export default function NewTenantPage() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin/tenants" className="text-slate-400 hover:text-white">←</Link>
+        <Link
+          href="/admin/tenants"
+          className="text-slate-400 hover:text-white"
+          aria-label="Volver a tenants"
+        >
+          ←
+        </Link>
         <span className="text-lg font-bold text-white">Nuevo tenant</span>
       </header>
 
       <main className="max-w-lg mx-auto px-6 py-8">
-        <form onSubmit={handleSubmit} className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-slate-800/50 border border-slate-700 rounded-xl p-6 space-y-4"
+        >
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2 rounded-lg">{error}</div>
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm px-3 py-2 rounded-lg">
+              {error}
+            </div>
           )}
 
           {[
@@ -57,7 +80,13 @@ export default function NewTenantPage() {
             <div key={field.key}>
               <label className="block text-sm text-slate-300 mb-1">{field.label}</label>
               <input
-                type={field.key === 'ownerPassword' ? 'password' : field.key === 'ownerEmail' ? 'email' : 'text'}
+                type={
+                  field.key === 'ownerPassword'
+                    ? 'password'
+                    : field.key === 'ownerEmail'
+                      ? 'email'
+                      : 'text'
+                }
                 value={form[field.key as keyof typeof form]}
                 onChange={(e) => set(field.key, e.target.value)}
                 placeholder={field.placeholder}
@@ -75,7 +104,9 @@ export default function NewTenantPage() {
               className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
             >
               {['FREE', 'STARTER', 'PRO', 'ENTERPRISE'].map((p) => (
-                <option key={p} value={p}>{p}</option>
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
             </select>
           </div>

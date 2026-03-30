@@ -74,13 +74,19 @@ function SettingsContent() {
       }
     }
 
+    const controller = new AbortController();
     Promise.all(
       PLATFORMS.map((p) =>
         p.api.status().then((s: SocialStatus) => [p.key, s] as [string, SocialStatus]),
       ),
     )
-      .then((results) => setStatuses(Object.fromEntries(results)))
-      .finally(() => setLoading(false));
+      .then((results) => {
+        if (!controller.signal.aborted) setStatuses(Object.fromEntries(results));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated, router, params]);
 
   async function handleConnect(api: typeof instagramApi) {
@@ -99,7 +105,11 @@ function SettingsContent() {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-slate-400 hover:text-white">
+        <Link
+          href="/dashboard"
+          className="text-slate-400 hover:text-white"
+          aria-label="Volver al dashboard"
+        >
           ←
         </Link>
         <span className="text-lg font-bold text-white">Configuración</span>

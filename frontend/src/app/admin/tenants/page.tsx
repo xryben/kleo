@@ -30,16 +30,26 @@ export default function AdminTenantsPage() {
 
   useEffect(() => {
     if (auth.isLoading || !auth.isAuthenticated) return;
+    const controller = new AbortController();
     adminApi
       .listTenants()
-      .then(setTenants)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!controller.signal.aborted) setTenants(data);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, [auth.isLoading, auth.isAuthenticated]);
 
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/admin" className="text-slate-400 hover:text-white transition-colors">
+        <Link
+          href="/admin"
+          className="text-slate-400 hover:text-white transition-colors"
+          aria-label="Volver a admin"
+        >
           ←
         </Link>
         <span className="text-lg font-bold text-white">Tenants</span>

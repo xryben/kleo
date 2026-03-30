@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { campaignsApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusBadgeClasses, statusLabel } from '@/lib/design-tokens';
 
 interface Campaign {
   id: string;
@@ -15,20 +16,6 @@ interface Campaign {
   clipsCount: number;
   createdAt: string;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: 'bg-green-500/20 text-green-400',
-  PAUSED: 'bg-yellow-500/20 text-yellow-400',
-  COMPLETED: 'bg-blue-500/20 text-blue-400',
-  DRAFT: 'bg-slate-700 text-slate-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'Activa',
-  PAUSED: 'Pausada',
-  COMPLETED: 'Completada',
-  DRAFT: 'Borrador',
-};
 
 export default function CampaignsListPage() {
   const router = useRouter();
@@ -135,9 +122,9 @@ export default function CampaignsListPage() {
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-white text-lg">{c.title}</h3>
                         <span
-                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[c.status] || 'bg-slate-700 text-slate-400'}`}
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusBadgeClasses(c.status)}`}
                         >
-                          {STATUS_LABELS[c.status] || c.status}
+                          {statusLabel(c.status)}
                         </span>
                       </div>
                       <div className="text-xs text-slate-400 mt-1">

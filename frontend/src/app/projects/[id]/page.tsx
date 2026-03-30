@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { projectsApi, clipsApi, publishApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
 import { useToast } from '@/components/ui/toast';
+import { platformIcon } from '@/lib/design-tokens';
 
 interface SocialPublish {
   platform: 'INSTAGRAM' | 'YOUTUBE' | 'TIKTOK';
@@ -102,7 +103,11 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   return (
     <div className="min-h-screen">
       <header className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Link href="/dashboard" className="text-slate-400 hover:text-white transition-colors">
+        <Link
+          href="/dashboard"
+          className="text-slate-400 hover:text-white transition-colors"
+          aria-label="Volver al dashboard"
+        >
           ←
         </Link>
         <div className="flex-1">
@@ -210,18 +215,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                       {(
                         [
                           {
-                            platform: 'INSTAGRAM',
-                            label: '📸',
+                            platform: 'INSTAGRAM' as const,
+                            label: platformIcon('INSTAGRAM'),
                             color: 'bg-pink-600 hover:bg-pink-700',
                           },
                           {
-                            platform: 'YOUTUBE',
-                            label: '▶️',
+                            platform: 'YOUTUBE' as const,
+                            label: platformIcon('YOUTUBE'),
                             color: 'bg-red-600 hover:bg-red-700',
                           },
                           {
-                            platform: 'TIKTOK',
-                            label: '🎵',
+                            platform: 'TIKTOK' as const,
+                            label: platformIcon('TIKTOK'),
                             color: 'bg-slate-600 hover:bg-slate-500',
                           },
                         ] as const

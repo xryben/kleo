@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { projectsApi } from '@/lib/api';
 import { useAuth, logout } from '@/lib/useAuth';
+import { statusTextColor, statusLabel } from '@/lib/design-tokens';
 
 interface Project {
   id: string;
@@ -13,26 +14,6 @@ interface Project {
   createdAt: string;
   _count: { clips: number };
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'En cola',
-  DOWNLOADING: 'Descargando',
-  TRANSCRIBING: 'Transcribiendo',
-  ANALYZING: 'Analizando',
-  CUTTING: 'Cortando clips',
-  READY: 'Listo',
-  FAILED: 'Error',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'text-slate-400',
-  DOWNLOADING: 'text-blue-400',
-  TRANSCRIBING: 'text-yellow-400',
-  ANALYZING: 'text-orange-400',
-  CUTTING: 'text-purple-400',
-  READY: 'text-green-400',
-  FAILED: 'text-red-400',
-};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -165,8 +146,8 @@ export default function DashboardPage() {
                       <span className="font-medium text-white">{p._count.clips}</span> clips
                     </div>
                   )}
-                  <div className={`font-medium ${STATUS_COLORS[p.status] || 'text-slate-400'}`}>
-                    {STATUS_LABELS[p.status] || p.status}
+                  <div className={`font-medium ${statusTextColor(p.status)}`}>
+                    {statusLabel(p.status)}
                   </div>
                   <span className="text-slate-500">→</span>
                 </div>
