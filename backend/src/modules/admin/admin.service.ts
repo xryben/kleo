@@ -4,11 +4,11 @@ import { Plan } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
 
 export class CreateTenantDto {
-  @IsString() name: string;
-  @IsString() slug: string;
-  @IsString() ownerName: string;
-  @IsString() ownerEmail: string;
-  @IsString() ownerPassword: string;
+  @IsString() name!: string;
+  @IsString() slug!: string;
+  @IsString() ownerName!: string;
+  @IsString() ownerEmail!: string;
+  @IsString() ownerPassword!: string;
   @IsOptional() @IsEnum(Plan) plan?: Plan;
 }
 

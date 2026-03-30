@@ -165,7 +165,7 @@ Responde SOLO con JSON válido, sin markdown:
     if (!existsSync(clipsDir)) mkdirSync(clipsDir, { recursive: true });
 
     for (let i = 0; i < moments.length; i++) {
-      const moment = moments[i];
+      const moment = moments[i]!;
       const clipPath = join(clipsDir, `clip_${i + 1}.mp4`);
       const thumbPath = join(clipsDir, `thumb_${i + 1}.jpg`);
       const clipDuration = moment.endTime - moment.startTime;

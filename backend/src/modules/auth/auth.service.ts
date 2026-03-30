@@ -18,7 +18,7 @@ export class AuthService {
     const hash = await bcrypt.hash(dto.password, 12);
 
     // Create tenant for new user
-    const slug = dto.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+    const slug = dto.email.split('@')[0]!.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
     const tenant = await this.prisma.tenant.create({
       data: { name: dto.name, slug },
     });

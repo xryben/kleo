@@ -12,20 +12,20 @@ import { SocialPlatform } from '@prisma/client';
 
 export class CreateClaimDto {
   @IsString()
-  campaignClipId: string;
+  campaignClipId!: string;
 }
 
 export class SubmitClaimDto {
   @IsUrl()
-  socialUrl: string;
+  socialUrl!: string;
 }
 
 export class SubmissionUrlDto {
   @IsEnum(SocialPlatform)
-  platform: SocialPlatform;
+  platform!: SocialPlatform;
 
   @IsUrl()
-  url: string;
+  url!: string;
 }
 
 export class SubmitClaimMultiDto {
@@ -34,5 +34,5 @@ export class SubmitClaimMultiDto {
   @ArrayMaxSize(3)
   @ValidateNested({ each: true })
   @Type(() => SubmissionUrlDto)
-  urls: SubmissionUrlDto[];
+  urls!: SubmissionUrlDto[];
 }

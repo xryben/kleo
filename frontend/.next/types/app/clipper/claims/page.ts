@@ -1,4 +1,4 @@
-// File: /home/ubuntu/cleo/frontend/src/app/clipper/claims/page.tsx
+// File: /home/ubuntu/.paperclip/instances/default/projects/3b97c45c-d231-4759-98cf-fc0c6aa14fd6/3dfff6b9-b85c-4095-b7a7-f16ac6f4145a/kleo/frontend/src/app/clipper/claims/page.tsx
 import * as entry from '../../../../../src/app/clipper/claims/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

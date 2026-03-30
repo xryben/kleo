@@ -3,7 +3,7 @@ import { CampaignStatus } from '@prisma/client';
 
 export class CreateCampaignDto {
   @IsString()
-  title: string;
+  title!: string;
 
   @IsOptional()
   @IsString()
@@ -11,11 +11,11 @@ export class CreateCampaignDto {
 
   @IsInt()
   @Min(1)
-  budgetCents: number;
+  budgetCents!: number;
 
   @IsInt()
   @Min(1)
-  cpmCents: number;
+  cpmCents!: number;
 
   @IsOptional()
   @IsDateString()
@@ -60,5 +60,5 @@ export class UpdateCampaignDto {
 
 export class AddClipsToCampaignDto {
   @IsString({ each: true })
-  clipIds: string[];
+  clipIds!: string[];
 }

@@ -194,7 +194,7 @@ export class VerificationService {
         // This heuristic checks for consistent subtle brightness patterns
         let subtleBrightPixels = 0;
         for (let px = 0; px < region.length; px++) {
-          if (region[px] > 240) subtleBrightPixels++;
+          if (region[px]! > 240) subtleBrightPixels++;
         }
 
         const ratio = subtleBrightPixels / region.length;
@@ -258,7 +258,7 @@ export class VerificationService {
     let distance = 0;
     const len = Math.min(hash1.length, hash2.length);
     for (let i = 0; i < len; i++) {
-      const xor = parseInt(hash1[i], 16) ^ parseInt(hash2[i], 16);
+      const xor = parseInt(hash1[i]!, 16) ^ parseInt(hash2[i]!, 16);
       // Count set bits
       let bits = xor;
       while (bits) {

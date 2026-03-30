@@ -255,7 +255,7 @@ export class ViewTrackingProcessor {
     // Calculate average delta from history (snapshots are desc order)
     const deltas: number[] = [];
     for (let i = 0; i < snapshotHistory.length - 1; i++) {
-      const d = snapshotHistory[i] - snapshotHistory[i + 1];
+      const d = snapshotHistory[i]! - snapshotHistory[i + 1]!;
       if (d > 0) deltas.push(d);
     }
 

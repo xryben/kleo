@@ -110,7 +110,7 @@ export class MarketplaceService {
     }
 
     // Return clip info with all active campaigns it belongs to
-    const clip = campaignClips[0].clip;
+    const clip = campaignClips[0]!.clip;
     return {
       ...clip,
       campaigns: campaignClips.map((cc) => ({

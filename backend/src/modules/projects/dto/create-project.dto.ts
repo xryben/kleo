@@ -3,10 +3,10 @@ import { SourceType } from '@prisma/client';
 
 export class CreateProjectDto {
   @IsString()
-  title: string;
+  title!: string;
 
   @IsEnum(SourceType)
-  sourceType: SourceType;
+  sourceType!: SourceType;
 
   @IsOptional()
   @IsUrl()

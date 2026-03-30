@@ -287,7 +287,7 @@ describe('Partial submission: single platform', () => {
     });
 
     expect(submissions).toHaveLength(1);
-    expect(submissions[0].platform).toBe('TIKTOK');
+    expect(submissions[0]!.platform).toBe('TIKTOK');
   });
 
   it('should go to SUBMITTED with just 1 submission', async () => {
@@ -516,7 +516,7 @@ describe('Edge cases', () => {
     });
     // Should still create snapshot using fallback viewCount
     expect(snapshots.length).toBeGreaterThanOrEqual(1);
-    expect(snapshots[0].viewCount).toBe(500);
+    expect(snapshots[0]!.viewCount).toBe(500);
   });
 
   it('should detect idempotency — second run with same views produces no new earnings', async () => {
