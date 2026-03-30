@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { execSync } from 'child_process';
-import { existsSync, mkdirSync, renameSync } from 'fs';
+import { execFileSync } from 'child_process';
+import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import OpenAI from 'openai';
@@ -77,14 +77,32 @@ export class ProcessingService {
 
     if (project.sourceType === 'YOUTUBE') {
       if (!project.sourceUrl) throw new Error('sourceUrl requerida para YouTube');
+      // Validate URL to prevent command injection
+      try {
+        const parsed = new URL(project.sourceUrl);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          throw new Error('Invalid URL protocol');
+        }
+      } catch {
+        throw new Error('sourceUrl inválida');
+      }
       this.logger.log(`Downloading YouTube: ${project.sourceUrl}`);
-      execSync(
-        `yt-dlp -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" --merge-output-format mp4 -o "${sourcePath}" "${project.sourceUrl}"`,
+      execFileSync(
+        'yt-dlp',
+        [
+          '-f',
+          'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+          '--merge-output-format',
+          'mp4',
+          '-o',
+          sourcePath,
+          project.sourceUrl,
+        ],
         { timeout: 300000 },
       );
     } else {
       if (!project.localPath) throw new Error('localPath requerida para UPLOAD');
-      execSync(`cp "${project.localPath}" "${sourcePath}"`);
+      copyFileSync(project.localPath, sourcePath);
     }
 
     if (!existsSync(sourcePath)) throw new Error('No se pudo obtener el video fuente');
@@ -92,16 +110,36 @@ export class ProcessingService {
   }
 
   private getVideoDuration(videoPath: string): number {
-    const output = execSync(
-      `ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${videoPath}"`,
-    ).toString().trim();
+    const output = execFileSync('ffprobe', [
+      '-v',
+      'quiet',
+      '-show_entries',
+      'format=duration',
+      '-of',
+      'csv=p=0',
+      videoPath,
+    ])
+      .toString()
+      .trim();
     return parseFloat(output);
   }
 
   private async transcribe(videoPath: string, projectDir: string): Promise<string> {
     const audioPath = join(projectDir, 'audio.mp3');
     this.logger.log('Extracting audio...');
-    execSync(`ffmpeg -i "${videoPath}" -vn -acodec libmp3lame -ar 16000 -ac 1 "${audioPath}" -y`);
+    execFileSync('ffmpeg', [
+      '-i',
+      videoPath,
+      '-vn',
+      '-acodec',
+      'libmp3lame',
+      '-ar',
+      '16000',
+      '-ac',
+      '1',
+      audioPath,
+      '-y',
+    ]);
 
     this.logger.log('Transcribing with Whisper...');
     const { createReadStream } = await import('fs');
@@ -147,7 +185,10 @@ Responde SOLO con JSON válido, sin markdown:
     );
 
     const content: string = response.data.choices[0].message.content;
-    const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const cleaned = content
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
     const parsed = JSON.parse(cleaned) as { clips: ClipMoment[] };
 
     return parsed.clips.filter(
@@ -174,8 +215,24 @@ Responde SOLO con JSON válido, sin markdown:
 
       // Cut the raw clip
       const rawClipPath = join(clipsDir, `clip_${i + 1}_raw.mp4`);
-      execSync(
-        `ffmpeg -i "${sourcePath}" -ss ${moment.startTime} -t ${clipDuration} -c:v libx264 -c:a aac -preset fast "${rawClipPath}" -y`,
+      execFileSync(
+        'ffmpeg',
+        [
+          '-i',
+          sourcePath,
+          '-ss',
+          String(moment.startTime),
+          '-t',
+          String(clipDuration),
+          '-c:v',
+          'libx264',
+          '-c:a',
+          'aac',
+          '-preset',
+          'fast',
+          rawClipPath,
+          '-y',
+        ],
         { timeout: 120000 },
       );
 
@@ -184,21 +241,40 @@ Responde SOLO con JSON válido, sin markdown:
       const watermarkText = `KLEO-${watermarkUuid}`;
       this.logger.log(`Watermarking clip ${i + 1} with ${watermarkText}`);
 
-      execSync(
-        `ffmpeg -i "${rawClipPath}" -vf "drawtext=text='${watermarkText}':fontsize=8:fontcolor=white@0.05:x=w-tw-10:y=h-th-10" -metadata comment=${watermarkText} -c:v libx264 -c:a aac -preset fast "${clipPath}" -y`,
+      // Escape special characters for ffmpeg drawtext filter
+      const escapedWatermark = watermarkText.replace(/[:'\\]/g, '\\$&');
+      execFileSync(
+        'ffmpeg',
+        [
+          '-i',
+          rawClipPath,
+          '-vf',
+          `drawtext=text='${escapedWatermark}':fontsize=8:fontcolor=white@0.05:x=w-tw-10:y=h-th-10`,
+          '-metadata',
+          `comment=${watermarkText}`,
+          '-c:v',
+          'libx264',
+          '-c:a',
+          'aac',
+          '-preset',
+          'fast',
+          clipPath,
+          '-y',
+        ],
         { timeout: 120000 },
       );
 
       // Clean up raw clip
       if (existsSync(rawClipPath)) {
-        try { execSync(`rm "${rawClipPath}"`); } catch {}
+        try {
+          unlinkSync(rawClipPath);
+        } catch {}
       }
 
       // Thumbnail
-      execSync(
-        `ffmpeg -i "${clipPath}" -ss 1 -frames:v 1 "${thumbPath}" -y`,
-        { timeout: 30000 },
-      );
+      execFileSync('ffmpeg', ['-i', clipPath, '-ss', '1', '-frames:v', '1', thumbPath, '-y'], {
+        timeout: 30000,
+      });
 
       const clip = await this.prisma.clip.create({
         data: {
@@ -227,7 +303,9 @@ Responde SOLO con JSON válido, sin markdown:
   private async updateStatus(projectId: string, status: string): Promise<void> {
     await this.prisma.videoProject.update({
       where: { id: projectId },
-      data: { status: status as Parameters<typeof this.prisma.videoProject.update>[0]['data']['status'] },
+      data: {
+        status: status as Parameters<typeof this.prisma.videoProject.update>[0]['data']['status'],
+      },
     });
   }
 }
