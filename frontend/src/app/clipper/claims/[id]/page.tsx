@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { claimsApi, clipsApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusBadgeClasses, statusLabel, platforms as platformConfig } from '@/lib/design-tokens';
 
 type Platform = 'TIKTOK' | 'INSTAGRAM' | 'YOUTUBE';
 
@@ -32,39 +33,25 @@ interface ClaimDetail {
   verifiedAt: string | null;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  CLAIMED: 'bg-blue-500/20 text-blue-400',
-  SUBMITTED: 'bg-yellow-500/20 text-yellow-400',
-  VERIFIED: 'bg-green-500/20 text-green-400',
-  REJECTED: 'bg-red-500/20 text-red-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  CLAIMED: 'Reclamado',
-  SUBMITTED: 'Enviado',
-  VERIFIED: 'Verificado',
-  REJECTED: 'Rechazado',
-};
-
 const PLATFORM_CONFIG: Record<
   Platform,
   { label: string; icon: string; placeholder: string; regex: RegExp }
 > = {
   TIKTOK: {
     label: 'TikTok',
-    icon: '🎵',
+    icon: platformConfig.TIKTOK.icon,
     placeholder: 'https://www.tiktok.com/@user/video/...',
     regex: /^https?:\/\/(www\.|vm\.)?tiktok\.com\/.+/i,
   },
   INSTAGRAM: {
     label: 'Instagram Reels',
-    icon: '📸',
+    icon: platformConfig.INSTAGRAM.icon,
     placeholder: 'https://www.instagram.com/reel/...',
     regex: /^https?:\/\/(www\.)?instagram\.com\/(reel|p)\/.+/i,
   },
   YOUTUBE: {
     label: 'YouTube Shorts',
-    icon: '▶️',
+    icon: platformConfig.YOUTUBE.icon,
     placeholder: 'https://youtube.com/shorts/...',
     regex: /^https?:\/\/(www\.|m\.)?(youtube\.com\/shorts\/|youtu\.be\/).+/i,
   },
@@ -251,9 +238,9 @@ export default function ClaimDetailPage() {
         {/* Status Bar */}
         <div className="flex items-center gap-3 mb-6">
           <span
-            className={`text-sm font-medium px-3 py-1.5 rounded-full ${STATUS_COLORS[claim.status] || 'bg-slate-700 text-slate-400'}`}
+            className={`text-sm font-medium px-3 py-1.5 rounded-full ${statusBadgeClasses(claim.status)}`}
           >
-            {STATUS_LABELS[claim.status] || claim.status}
+            {statusLabel(claim.status)}
           </span>
           <span className="text-slate-400 text-sm">
             Reclamado el {new Date(claim.createdAt).toLocaleDateString('es-ES')}

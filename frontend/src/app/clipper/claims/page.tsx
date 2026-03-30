@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { claimsApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { statusBadgeClasses, statusLabel, platformIcon } from '@/lib/design-tokens';
 
 interface Claim {
   id: string;
@@ -15,26 +16,6 @@ interface Claim {
   socialUrl: string | null;
   createdAt: string;
 }
-
-const STATUS_COLORS: Record<string, string> = {
-  CLAIMED: 'bg-blue-500/20 text-blue-400',
-  SUBMITTED: 'bg-yellow-500/20 text-yellow-400',
-  VERIFIED: 'bg-green-500/20 text-green-400',
-  REJECTED: 'bg-red-500/20 text-red-400',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  CLAIMED: 'Reclamado',
-  SUBMITTED: 'Enviado',
-  VERIFIED: 'Verificado',
-  REJECTED: 'Rechazado',
-};
-
-const PLATFORM_ICONS: Record<string, string> = {
-  INSTAGRAM: '📸',
-  YOUTUBE: '▶️',
-  TIKTOK: '🎵',
-};
 
 export default function ClaimsListPage() {
   const router = useRouter();
@@ -114,7 +95,7 @@ export default function ClaimsListPage() {
                   : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}
             >
-              {s === 'ALL' ? 'Todos' : STATUS_LABELS[s] || s}
+              {s === 'ALL' ? 'Todos' : statusLabel(s)}
             </button>
           ))}
         </div>
@@ -179,7 +160,7 @@ export default function ClaimsListPage() {
                   <div className="font-medium text-white truncate">{claim.clipTitle}</div>
                   <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
                     <span>
-                      {PLATFORM_ICONS[claim.platform] || '📱'} {claim.platform}
+                      {platformIcon(claim.platform)} {claim.platform}
                     </span>
                     <span>·</span>
                     <span>{new Date(claim.createdAt).toLocaleDateString('es-ES')}</span>
@@ -192,9 +173,9 @@ export default function ClaimsListPage() {
                     </span>
                   )}
                   <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COLORS[claim.status] || 'bg-slate-700 text-slate-400'}`}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusBadgeClasses(claim.status)}`}
                   >
-                    {STATUS_LABELS[claim.status] || claim.status}
+                    {statusLabel(claim.status)}
                   </span>
                   <span className="text-slate-500">→</span>
                 </div>

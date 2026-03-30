@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { marketplaceApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import { platformIcon } from '@/lib/design-tokens';
 
 interface MarketplaceClip {
   id: string;
@@ -41,12 +42,6 @@ function formatDuration(seconds: number) {
   const s = seconds % 60;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
-
-const PLATFORM_ICONS: Record<string, string> = {
-  INSTAGRAM: '📸',
-  YOUTUBE: '▶️',
-  TIKTOK: '🎵',
-};
 
 export default function MarketplacePage() {
   const router = useRouter();
@@ -225,7 +220,7 @@ export default function MarketplacePage() {
                   </h3>
                   <p className="text-sm text-slate-400 mt-1 truncate">{clip.campaignTitle}</p>
                   <div className="flex items-center gap-2 mt-3">
-                    <span className="text-sm">{PLATFORM_ICONS[clip.platform] || '📱'}</span>
+                    <span className="text-sm">{platformIcon(clip.platform)}</span>
                     <span className="text-xs text-slate-400">{clip.platform}</span>
                     <span className="text-slate-600 mx-1">·</span>
                     <span className="text-xs text-slate-400">{clip.category}</span>

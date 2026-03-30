@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clipperApi } from '@/lib/api';
 import { useAuth } from '@/lib/useAuth';
+import {
+  statusTextColor,
+  statusLabel,
+  platformIcon,
+  platforms as platformConfig,
+} from '@/lib/design-tokens';
 
 interface PlatformViews {
   platform: string;
@@ -36,27 +42,7 @@ interface EarningsData {
   }[];
 }
 
-const PAYOUT_STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Pendiente',
-  PROCESSING: 'Procesando',
-  COMPLETED: 'Completado',
-  FAILED: 'Fallido',
-};
-
-const PAYOUT_STATUS_COLORS: Record<string, string> = {
-  PENDING: 'text-yellow-400',
-  PROCESSING: 'text-blue-400',
-  COMPLETED: 'text-green-400',
-  FAILED: 'text-red-400',
-};
-
-const PLATFORM_ICONS: Record<string, string> = {
-  TIKTOK: '🎵',
-  INSTAGRAM: '📸',
-  YOUTUBE: '▶️',
-};
-
-const PLATFORM_COLORS: Record<string, string> = {
+const PLATFORM_BAR_COLORS: Record<string, string> = {
   TIKTOK: 'bg-pink-500',
   INSTAGRAM: 'bg-orange-500',
   YOUTUBE: 'bg-red-500',
@@ -208,7 +194,7 @@ export default function EarningsPage() {
                                 return (
                                   <div
                                     key={pb.platform}
-                                    className={`h-2 rounded-full ${PLATFORM_COLORS[pb.platform] || 'bg-slate-500'} transition-all`}
+                                    className={`h-2 rounded-full ${PLATFORM_BAR_COLORS[pb.platform] || 'bg-slate-500'} transition-all`}
                                     style={{ width: `${Math.max(pct, 2)}%` }}
                                     title={`${pb.platform}: ${pb.views.toLocaleString()} vistas`}
                                   />
@@ -221,7 +207,7 @@ export default function EarningsPage() {
                                   key={pb.platform}
                                   className="flex items-center gap-1.5 text-xs text-slate-400"
                                 >
-                                  <span>{PLATFORM_ICONS[pb.platform] || '📱'}</span>
+                                  <span>{platformIcon(pb.platform)}</span>
                                   <span>{pb.views.toLocaleString()} vistas</span>
                                 </div>
                               ))}
@@ -276,10 +262,8 @@ export default function EarningsPage() {
                           {new Date(payout.createdAt).toLocaleDateString('es-ES')}
                         </div>
                       </div>
-                      <span
-                        className={`text-sm font-medium ${PAYOUT_STATUS_COLORS[payout.status] || 'text-slate-400'}`}
-                      >
-                        {PAYOUT_STATUS_LABELS[payout.status] || payout.status}
+                      <span className={`text-sm font-medium ${statusTextColor(payout.status)}`}>
+                        {statusLabel(payout.status)}
                       </span>
                     </div>
                   ))
