@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { createReadStream, existsSync } from 'fs';
+import { resolve } from 'path';
 import { Response } from 'express';
 import { SocialPlatform } from '@prisma/client';
 import { PrismaService } from '../../prisma.service';
@@ -9,12 +10,22 @@ import { TikTokService } from '../tiktok/tiktok.service';
 
 @Injectable()
 export class ClipsService {
+  private readonly uploadsPath = resolve(process.env.UPLOADS_PATH || '/var/www/cleo/uploads');
+
   constructor(
     private prisma: PrismaService,
     private instagram: InstagramService,
     private youtube: YouTubeService,
     private tiktok: TikTokService,
   ) {}
+
+  private validateFilePath(filePath: string): string {
+    const resolved = resolve(filePath);
+    if (!resolved.startsWith(this.uploadsPath + '/') && resolved !== this.uploadsPath) {
+      throw new ForbiddenException('File path outside uploads directory');
+    }
+    return resolved;
+  }
 
   async findOne(id: string, tenantId: string) {
     const clip = await this.prisma.clip.findUnique({
@@ -28,14 +39,16 @@ export class ClipsService {
 
   async stream(id: string, tenantId: string, res: Response) {
     const clip = await this.findOne(id, tenantId);
-    if (!existsSync(clip.filePath)) throw new NotFoundException('Archivo no encontrado');
+    const safePath = this.validateFilePath(clip.filePath);
+    if (!existsSync(safePath)) throw new NotFoundException('Archivo no encontrado');
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Accept-Ranges', 'bytes');
-    createReadStream(clip.filePath).pipe(res);
+    createReadStream(safePath).pipe(res);
   }
 
   async publish(id: string, tenantId: string, platform: SocialPlatform) {
     const clip = await this.findOne(id, tenantId);
+    const safePath = this.validateFilePath(clip.filePath);
 
     // Get owner userId
     const project = await this.prisma.videoProject.findUnique({
@@ -65,7 +78,7 @@ export class ClipsService {
         const account = await this.prisma.instagramAccount.findUnique({ where: { userId } });
         if (!account) throw new BadRequestException('Instagram no conectado');
         postId = await this.instagram.publishClip(
-          clip.filePath,
+          safePath,
           clip.description ?? clip.title,
           account.accessToken,
           account.igUserId,
@@ -75,7 +88,7 @@ export class ClipsService {
         const account = await this.prisma.youTubeAccount.findUnique({ where: { userId } });
         if (!account) throw new BadRequestException('YouTube no conectado');
         postId = await this.youtube.publishClip(
-          clip.filePath,
+          safePath,
           clip.title,
           clip.description ?? '',
           account.accessToken,
@@ -86,7 +99,7 @@ export class ClipsService {
         const account = await this.prisma.tikTokAccount.findUnique({ where: { userId } });
         if (!account) throw new BadRequestException('TikTok no conectado');
         postId = await this.tiktok.publishClip(
-          clip.filePath,
+          safePath,
           clip.title,
           account.accessToken,
         );
