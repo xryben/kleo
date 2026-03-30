@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
@@ -17,13 +17,36 @@ import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { VerificationModule } from './modules/verification/verification.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { PrismaService } from './prisma.service';
+import {
+  appConfig,
+  authConfig,
+  redisConfig,
+  tiktokConfig,
+  youtubeConfig,
+  instagramConfig,
+  aiConfig,
+} from './config/app.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [
+        appConfig,
+        authConfig,
+        redisConfig,
+        tiktokConfig,
+        youtubeConfig,
+        instagramConfig,
+        aiConfig,
+      ],
+    }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 30 }]),
-    BullModule.forRoot({
-      redis: process.env.REDIS_URL || 'redis://localhost:6379',
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        redis: config.get<string>('redis.url'),
+      }),
     }),
     AuthModule,
     UsersModule,

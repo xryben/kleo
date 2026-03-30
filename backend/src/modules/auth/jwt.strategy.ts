@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../prisma.service';
@@ -20,14 +21,18 @@ export interface AuthUser {
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private prisma: PrismaService) {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new Error('JWT_SECRET is not set');
+  private adminEmail: string | undefined;
+
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: secret,
+      secretOrKey: config.getOrThrow<string>('auth.jwtSecret'),
     });
+    this.adminEmail = config.get<string>('auth.adminEmail');
   }
 
   async validate(payload: JwtPayload): Promise<AuthUser> {
@@ -38,8 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) throw new UnauthorizedException();
 
     // Override role for SUPER_ADMIN
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const role = user.email === adminEmail ? 'SUPER_ADMIN' : user.role;
+    const role = user.email === this.adminEmail ? 'SUPER_ADMIN' : user.role;
 
     return { ...user, role };
   }

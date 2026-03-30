@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bull';
 import { PrismaService } from '../../prisma.service';
 import { ViewFetchService } from './view-fetch.service';
+import { PLATFORM_FEE_PERCENT, PAYOUT_HOLD_HOURS } from '../../config/app.config';
 
 interface ClaimAggregation {
   claimId: string;
@@ -33,8 +34,7 @@ export class ViewTrackingProcessor {
   async handleTrackViews(job: Job) {
     this.logger.log('Starting view tracking job...');
 
-    const platformFee =
-      parseInt(process.env.PLATFORM_FEE_PERCENT || '20', 10) / 100;
+    const platformFee = PLATFORM_FEE_PERCENT / 100;
 
     // Get all claims that have at least one verified submission on active campaigns
     const claims = await this.prisma.clipClaim.findMany({
@@ -92,10 +92,7 @@ export class ViewTrackingProcessor {
         // Process each submission: fetch views via yt-dlp, create snapshots, detect fraud, aggregate
         for (const sub of claim.submissions) {
           // Fetch live view count via yt-dlp
-          const fetchedViews = await this.viewFetch.fetchViewCount(
-            sub.socialUrl,
-            sub.platform,
-          );
+          const fetchedViews = await this.viewFetch.fetchViewCount(sub.socialUrl, sub.platform);
 
           // If fetch failed, use stored viewCount as fallback
           const currentViews = fetchedViews ?? sub.viewCount;
@@ -206,7 +203,7 @@ export class ViewTrackingProcessor {
           where: { id: claim.id },
           data: {
             earnedCents: { increment: cappedNet },
-            payoutHoldUntil: new Date(Date.now() + 48 * 60 * 60 * 1000),
+            payoutHoldUntil: new Date(Date.now() + PAYOUT_HOLD_HOURS * 60 * 60 * 1000),
           },
         });
 
@@ -224,9 +221,7 @@ export class ViewTrackingProcessor {
 
         processed++;
       } catch (err) {
-        this.logger.error(
-          `Error tracking views for claim ${claim.id}: ${err}`,
-        );
+        this.logger.error(`Error tracking views for claim ${claim.id}: ${err}`);
       }
     }
 
@@ -288,16 +283,12 @@ export class ViewTrackingProcessor {
   ) {
     const viewDrop = aggregation.previousTotalViews - aggregation.totalViews;
     const dropPercent =
-      aggregation.previousTotalViews > 0
-        ? viewDrop / aggregation.previousTotalViews
-        : 0;
+      aggregation.previousTotalViews > 0 ? viewDrop / aggregation.previousTotalViews : 0;
 
     // Only adjust if drop > 10%
     if (dropPercent <= 0.1) return;
 
-    const lostGross = Math.floor(
-      (viewDrop / 1000) * aggregation.cpmCents,
-    );
+    const lostGross = Math.floor((viewDrop / 1000) * aggregation.cpmCents);
     const lostNet = Math.floor(lostGross * (1 - platformFee));
     if (lostNet <= 0) return;
 
@@ -316,10 +307,7 @@ export class ViewTrackingProcessor {
 
     // Adjust earning if still pending
     if (claim.earning && claim.earning.status === 'PENDING') {
-      const newAmount = Math.max(
-        0,
-        claim.earning.amountCents - adjustmentCents,
-      );
+      const newAmount = Math.max(0, claim.earning.amountCents - adjustmentCents);
       await this.prisma.earning.update({
         where: { id: claim.earning.id },
         data: { amountCents: newAmount },
@@ -354,8 +342,6 @@ export class ViewTrackingProcessor {
       where: { id: campaignId },
       data: { status: 'EXHAUSTED' },
     });
-    this.logger.log(
-      `Campaign ${campaignId} budget exhausted — status set to EXHAUSTED`,
-    );
+    this.logger.log(`Campaign ${campaignId} budget exhausted — status set to EXHAUSTED`);
   }
 }

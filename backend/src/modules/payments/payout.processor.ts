@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Job } from 'bull';
 import Stripe from 'stripe';
 import { PrismaService } from '../../prisma.service';
+import { MIN_PAYOUT_CENTS } from '../../config/app.config';
 
 @Processor('payout-processing')
 export class PayoutProcessor {
@@ -20,9 +21,7 @@ export class PayoutProcessor {
         apiVersion: '2026-03-25.dahlia',
       });
     } else {
-      this.logger.warn(
-        'STRIPE_SECRET_KEY is not set — payout processing will be unavailable',
-      );
+      this.logger.warn('STRIPE_SECRET_KEY is not set — payout processing will be unavailable');
     }
   }
 
@@ -34,7 +33,7 @@ export class PayoutProcessor {
     }
 
     this.logger.log('Starting automatic payout processing...');
-    const minPayoutCents = 2500; // $25 minimum
+    const minPayoutCents = MIN_PAYOUT_CENTS;
 
     // Group pending earnings by clipper, excluding claims still under 48h hold
     const clippers = await this.prisma.earning.groupBy({
@@ -42,10 +41,7 @@ export class PayoutProcessor {
       where: {
         status: 'PENDING',
         claim: {
-          OR: [
-            { payoutHoldUntil: null },
-            { payoutHoldUntil: { lt: new Date() } },
-          ],
+          OR: [{ payoutHoldUntil: null }, { payoutHoldUntil: { lt: new Date() } }],
           flaggedForReview: false,
         },
       },
@@ -63,20 +59,14 @@ export class PayoutProcessor {
         });
 
         if (!user?.stripeConnectId) {
-          this.logger.warn(
-            `Clipper ${group.clipperId} has no Connect account, skipping`,
-          );
+          this.logger.warn(`Clipper ${group.clipperId} has no Connect account, skipping`);
           continue;
         }
 
         // Verify Connect account is active
-        const account = await this.stripe.accounts.retrieve(
-          user.stripeConnectId,
-        );
+        const account = await this.stripe.accounts.retrieve(user.stripeConnectId);
         if (!account.payouts_enabled) {
-          this.logger.warn(
-            `Clipper ${group.clipperId} Connect account not verified, skipping`,
-          );
+          this.logger.warn(`Clipper ${group.clipperId} Connect account not verified, skipping`);
           continue;
         }
 
@@ -85,18 +75,12 @@ export class PayoutProcessor {
             clipperId: group.clipperId,
             status: 'PENDING',
             claim: {
-              OR: [
-                { payoutHoldUntil: null },
-                { payoutHoldUntil: { lt: new Date() } },
-              ],
+              OR: [{ payoutHoldUntil: null }, { payoutHoldUntil: { lt: new Date() } }],
               flaggedForReview: false,
             },
           },
         });
-        const totalCents = pendingEarnings.reduce(
-          (sum, e) => sum + e.amountCents,
-          0,
-        );
+        const totalCents = pendingEarnings.reduce((sum, e) => sum + e.amountCents, 0);
         if (totalCents < minPayoutCents) continue;
 
         // Create Stripe transfer
@@ -129,15 +113,11 @@ export class PayoutProcessor {
           `Payout of $${(totalCents / 100).toFixed(2)} sent to clipper ${group.clipperId}`,
         );
       } catch (err) {
-        this.logger.error(
-          `Payout failed for clipper ${group.clipperId}: ${err}`,
-        );
+        this.logger.error(`Payout failed for clipper ${group.clipperId}: ${err}`);
       }
     }
 
-    this.logger.log(
-      `Payout processing complete. ${successCount}/${clippers.length} payouts sent.`,
-    );
+    this.logger.log(`Payout processing complete. ${successCount}/${clippers.length} payouts sent.`);
     return { success: successCount, total: clippers.length };
   }
 }

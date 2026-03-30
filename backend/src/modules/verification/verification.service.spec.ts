@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { VerificationService } from './verification.service';
 import { PrismaService } from '../../prisma.service';
 import { NotFoundException } from '@nestjs/common';
@@ -36,8 +37,17 @@ describe('VerificationService', () => {
       },
     };
 
+    const configGet = jest.fn((key: string) => {
+      if (key === 'app.uploadsPath') return '/var/www/cleo/uploads';
+      return undefined;
+    });
+
     const module: TestingModule = await Test.createTestingModule({
-      providers: [VerificationService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        VerificationService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: ConfigService, useValue: { get: configGet } },
+      ],
     }).compile();
 
     service = module.get<VerificationService>(VerificationService);

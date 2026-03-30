@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import Stripe from 'stripe';
 import { PrismaService } from '../../prisma.service';
+import { MIN_PAYOUT_CENTS } from '../../config/app.config';
 
 @Injectable()
 export class PaymentsService {
@@ -25,9 +26,7 @@ export class PaymentsService {
         apiVersion: '2026-03-25.dahlia',
       });
     } else {
-      this.logger.warn(
-        'STRIPE_SECRET_KEY is not set — Stripe features will be unavailable',
-      );
+      this.logger.warn('STRIPE_SECRET_KEY is not set — Stripe features will be unavailable');
     }
   }
 
@@ -66,17 +65,12 @@ export class PaymentsService {
 
   // ─── Infoproductor: Deposit budget into campaign ────────────────
 
-  async createCampaignDeposit(
-    userId: string,
-    campaignId: string,
-    amountCents: number,
-  ) {
+  async createCampaignDeposit(userId: string, campaignId: string, amountCents: number) {
     const campaign = await this.prisma.campaign.findUnique({
       where: { id: campaignId },
     });
     if (!campaign) throw new NotFoundException('Campaign not found');
-    if (campaign.userId !== userId)
-      throw new ForbiddenException('Not your campaign');
+    if (campaign.userId !== userId) throw new ForbiddenException('Not your campaign');
 
     // Ensure user has a Stripe customer
     let user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -86,9 +80,7 @@ export class PaymentsService {
       await this.createCustomer(userId);
       user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user?.stripeCustomerId) {
-        throw new BadRequestException(
-          'Failed to create Stripe customer for user',
-        );
+        throw new BadRequestException('Failed to create Stripe customer for user');
       }
     }
 
@@ -190,9 +182,7 @@ export class PaymentsService {
       where: { stripeSessionId: session.id },
     });
     if (existing) {
-      this.logger.warn(
-        `Duplicate webhook for checkout session ${session.id} — skipping`,
-      );
+      this.logger.warn(`Duplicate webhook for checkout session ${session.id} — skipping`);
       return;
     }
 
@@ -264,9 +254,7 @@ export class PaymentsService {
     // Check Connect account is active
     const account = await this.requireStripe().accounts.retrieve(user.stripeConnectId);
     if (!account.payouts_enabled)
-      throw new BadRequestException(
-        'Stripe Connect account not fully verified yet.',
-      );
+      throw new BadRequestException('Stripe Connect account not fully verified yet.');
 
     // Only include earnings where the 48h payout hold has expired and claim is not flagged
     const pendingEarnings = await this.prisma.earning.findMany({
@@ -274,20 +262,14 @@ export class PaymentsService {
         clipperId,
         status: 'PENDING',
         claim: {
-          OR: [
-            { payoutHoldUntil: null },
-            { payoutHoldUntil: { lt: new Date() } },
-          ],
+          OR: [{ payoutHoldUntil: null }, { payoutHoldUntil: { lt: new Date() } }],
           flaggedForReview: false,
         },
       },
     });
 
-    const totalCents = pendingEarnings.reduce(
-      (sum, e) => sum + e.amountCents,
-      0,
-    );
-    const minPayoutCents = 2500; // $25 minimum
+    const totalCents = pendingEarnings.reduce((sum, e) => sum + e.amountCents, 0);
+    const minPayoutCents = MIN_PAYOUT_CENTS;
 
     if (totalCents < minPayoutCents)
       throw new BadRequestException(

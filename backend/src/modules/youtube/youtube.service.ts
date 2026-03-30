@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
 import { createReadStream } from 'fs';
 import { PrismaService } from '../../prisma.service';
@@ -6,33 +7,41 @@ import { PrismaService } from '../../prisma.service';
 @Injectable()
 export class YouTubeService {
   private readonly logger = new Logger(YouTubeService.name);
+  private readonly clientId: string | undefined;
+  private readonly clientSecret: string | undefined;
+  private readonly redirectUri: string | undefined;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.clientId = config.get<string>('youtube.clientId');
+    this.clientSecret = config.get<string>('youtube.clientSecret');
+    this.redirectUri = config.get<string>('youtube.redirectUri');
+  }
 
   getAuthUrl(userId: string): string {
-    const clientId = process.env.YOUTUBE_CLIENT_ID;
-    const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
-    const redirectUri = process.env.YOUTUBE_REDIRECT_URI;
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!this.clientId || !this.clientSecret || !this.redirectUri) {
       throw new BadRequestException('YouTube no configurado');
     }
 
-    const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const oauth2 = new google.auth.OAuth2(this.clientId, this.clientSecret, this.redirectUri);
     return oauth2.generateAuthUrl({
       access_type: 'offline',
-      scope: ['https://www.googleapis.com/auth/youtube.upload', 'https://www.googleapis.com/auth/youtube.readonly'],
+      scope: [
+        'https://www.googleapis.com/auth/youtube.upload',
+        'https://www.googleapis.com/auth/youtube.readonly',
+      ],
       state: userId,
       prompt: 'consent',
     });
   }
 
   async handleCallback(code: string, userId: string) {
-    const clientId = process.env.YOUTUBE_CLIENT_ID;
-    const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
-    const redirectUri = process.env.YOUTUBE_REDIRECT_URI;
-    if (!clientId || !clientSecret || !redirectUri) throw new BadRequestException('YouTube no configurado');
+    if (!this.clientId || !this.clientSecret || !this.redirectUri)
+      throw new BadRequestException('YouTube no configurado');
 
-    const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+    const oauth2 = new google.auth.OAuth2(this.clientId, this.clientSecret, this.redirectUri);
     const { tokens } = await oauth2.getToken(code);
     oauth2.setCredentials(tokens);
 
@@ -68,7 +77,11 @@ export class YouTubeService {
   async getStatus(userId: string) {
     const account = await this.prisma.youTubeAccount.findUnique({ where: { userId } });
     if (!account) return { connected: false };
-    return { connected: true, channelName: account.channelName, tokenExpires: account.tokenExpires };
+    return {
+      connected: true,
+      channelName: account.channelName,
+      tokenExpires: account.tokenExpires,
+    };
   }
 
   async disconnect(userId: string) {
@@ -76,12 +89,14 @@ export class YouTubeService {
     return { ok: true };
   }
 
-  async publishClip(videoPath: string, title: string, description: string, accessToken: string, refreshToken: string): Promise<string> {
-    const clientId = process.env.YOUTUBE_CLIENT_ID;
-    const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
-    const redirectUri = process.env.YOUTUBE_REDIRECT_URI;
-
-    const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  async publishClip(
+    videoPath: string,
+    title: string,
+    description: string,
+    accessToken: string,
+    refreshToken: string,
+  ): Promise<string> {
+    const oauth2 = new google.auth.OAuth2(this.clientId, this.clientSecret, this.redirectUri);
     oauth2.setCredentials({ access_token: accessToken, refresh_token: refreshToken });
 
     const yt = google.youtube({ version: 'v3', auth: oauth2 });

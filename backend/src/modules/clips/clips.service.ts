@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { createReadStream, existsSync } from 'fs';
 import { resolve } from 'path';
 import { Response } from 'express';
@@ -10,14 +16,17 @@ import { TikTokService } from '../tiktok/tiktok.service';
 
 @Injectable()
 export class ClipsService {
-  private readonly uploadsPath = resolve(process.env.UPLOADS_PATH || '/var/www/cleo/uploads');
+  private readonly uploadsPath: string;
 
   constructor(
     private prisma: PrismaService,
     private instagram: InstagramService,
     private youtube: YouTubeService,
     private tiktok: TikTokService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.uploadsPath = resolve(config.get<string>('app.uploadsPath')!);
+  }
 
   private validateFilePath(filePath: string): string {
     const resolved = resolve(filePath);
@@ -83,7 +92,6 @@ export class ClipsService {
           account.accessToken,
           account.igUserId,
         );
-
       } else if (platform === 'YOUTUBE') {
         const account = await this.prisma.youTubeAccount.findUnique({ where: { userId } });
         if (!account) throw new BadRequestException('YouTube no conectado');
@@ -94,22 +102,16 @@ export class ClipsService {
           account.accessToken,
           account.refreshToken,
         );
-
       } else if (platform === 'TIKTOK') {
         const account = await this.prisma.tikTokAccount.findUnique({ where: { userId } });
         if (!account) throw new BadRequestException('TikTok no conectado');
-        postId = await this.tiktok.publishClip(
-          safePath,
-          clip.title,
-          account.accessToken,
-        );
+        postId = await this.tiktok.publishClip(safePath, clip.title, account.accessToken);
       }
 
       return this.prisma.socialPublish.update({
         where: { id: publish.id },
         data: { status: 'PUBLISHED', postId, publishedAt: new Date() },
       });
-
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
       await this.prisma.socialPublish.update({

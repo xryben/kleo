@@ -20,10 +20,20 @@ import { existsSync, mkdirSync } from 'fs';
 import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { AuthUser } from '../auth/jwt.strategy';
+import { MAX_FILE_SIZE_MB_DEFAULT } from '../../config/app.config';
 
 interface AuthRequest extends Request {
   user: AuthUser;
 }
+
+// Multer config evaluates at class-definition time (before DI), so
+// process.env is the only option here. ConfigModule.forRoot() has
+// already loaded .env by the time modules are initialized.
+const uploadsPath = process.env.UPLOADS_PATH || '/var/www/cleo/uploads';
+const maxFileSizeMb = parseInt(
+  process.env.MAX_FILE_SIZE_MB || String(MAX_FILE_SIZE_MB_DEFAULT),
+  10,
+);
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
@@ -48,8 +58,7 @@ export class ProjectsController {
     FileInterceptor('video', {
       storage: diskStorage({
         destination: (req, file, cb) => {
-          const uploadDir = process.env.UPLOADS_PATH || '/var/www/cleo/uploads';
-          const tmpDir = join(uploadDir, 'tmp');
+          const tmpDir = join(uploadsPath, 'tmp');
           if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true });
           cb(null, tmpDir);
         },
@@ -58,7 +67,7 @@ export class ProjectsController {
           cb(null, `${unique}${extname(file.originalname)}`);
         },
       }),
-      limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE_MB || '500') * 1024 * 1024 },
+      limits: { fileSize: maxFileSizeMb * 1024 * 1024 },
       fileFilter: (req, file, cb) => {
         const allowedExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
         const allowedMimes = [

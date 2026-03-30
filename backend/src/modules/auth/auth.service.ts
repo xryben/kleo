@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma.service';
@@ -6,10 +12,15 @@ import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly adminEmail: string | undefined;
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-  ) {}
+    private config: ConfigService,
+  ) {
+    this.adminEmail = this.config.get<string>('auth.adminEmail');
+  }
 
   async register(dto: RegisterDto) {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
@@ -18,7 +29,13 @@ export class AuthService {
     const hash = await bcrypt.hash(dto.password, 12);
 
     // Create tenant for new user
-    const slug = dto.email.split('@')[0]!.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now();
+    const slug =
+      dto.email
+        .split('@')[0]!
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-') +
+      '-' +
+      Date.now();
     const tenant = await this.prisma.tenant.create({
       data: { name: dto.name, slug },
     });
@@ -38,8 +55,6 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const adminEmail = process.env.ADMIN_EMAIL;
-
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
       include: { tenant: true },
@@ -50,11 +65,11 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Credenciales incorrectas');
 
     // Check tenant active (skip for super admin)
-    if (user.email !== adminEmail && user.tenant && !user.tenant.active) {
+    if (user.email !== this.adminEmail && user.tenant && !user.tenant.active) {
       throw new ForbiddenException('Cuenta suspendida');
     }
 
-    const role = user.email === adminEmail ? 'SUPER_ADMIN' : user.role;
+    const role = user.email === this.adminEmail ? 'SUPER_ADMIN' : user.role;
     const token = this.signToken(user.id, user.email, role, user.tenantId ?? undefined);
     return { token, user: { id: user.id, email: user.email, name: user.name, role } };
   }

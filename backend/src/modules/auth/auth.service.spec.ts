@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../../prisma.service';
 import { JwtService } from '@nestjs/jwt';
@@ -11,8 +12,10 @@ describe('AuthService', () => {
   let service: AuthService;
   let prisma: Record<string, any>;
   let jwt: { sign: jest.Mock };
+  let adminEmail: string | undefined;
 
   beforeEach(async () => {
+    adminEmail = undefined;
     prisma = {
       user: {
         findUnique: jest.fn(),
@@ -24,11 +27,17 @@ describe('AuthService', () => {
     };
     jwt = { sign: jest.fn().mockReturnValue('mock-jwt-token') };
 
+    const configGet = jest.fn((key: string) => {
+      if (key === 'auth.adminEmail') return adminEmail;
+      return undefined;
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
+        { provide: ConfigService, useValue: { get: configGet } },
       ],
     }).compile();
 
@@ -139,8 +148,20 @@ describe('AuthService', () => {
     });
 
     it('should allow login for admin even if tenant is inactive', async () => {
-      const originalEnv = process.env.ADMIN_EMAIL;
-      process.env.ADMIN_EMAIL = 'admin@example.com';
+      // Rebuild service with ADMIN_EMAIL configured
+      const configGet = jest.fn((key: string) => {
+        if (key === 'auth.adminEmail') return 'admin@example.com';
+        return undefined;
+      });
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          AuthService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: JwtService, useValue: jwt },
+          { provide: ConfigService, useValue: { get: configGet } },
+        ],
+      }).compile();
+      const adminService = module.get<AuthService>(AuthService);
 
       prisma.user.findUnique.mockResolvedValue({
         id: 'u-1',
@@ -153,12 +174,10 @@ describe('AuthService', () => {
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
-      const result = await service.login({ email: 'admin@example.com', password: 'pass' });
+      const result = await adminService.login({ email: 'admin@example.com', password: 'pass' });
 
       expect(result.user.role).toBe('SUPER_ADMIN');
       expect(result.token).toBe('mock-jwt-token');
-
-      process.env.ADMIN_EMAIL = originalEnv;
     });
 
     it('should return token and user on successful login', async () => {

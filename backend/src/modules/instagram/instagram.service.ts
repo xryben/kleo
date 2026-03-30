@@ -1,21 +1,32 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { PrismaService } from '../../prisma.service';
 
 @Injectable()
 export class InstagramService {
   private readonly logger = new Logger(InstagramService.name);
+  private readonly appId: string | undefined;
+  private readonly appSecret: string | undefined;
+  private readonly redirectUri: string | undefined;
+  private readonly frontendUrl: string;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    config: ConfigService,
+  ) {
+    this.appId = config.get<string>('instagram.appId');
+    this.appSecret = config.get<string>('instagram.appSecret');
+    this.redirectUri = config.get<string>('instagram.redirectUri');
+    this.frontendUrl = config.getOrThrow<string>('app.frontendUrl');
+  }
 
   getAuthUrl(): string {
-    const appId = process.env.INSTAGRAM_APP_ID;
-    const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
-    if (!appId || !redirectUri) throw new BadRequestException('Instagram no configurado');
+    if (!this.appId || !this.redirectUri) throw new BadRequestException('Instagram no configurado');
 
     const params = new URLSearchParams({
-      client_id: appId,
-      redirect_uri: redirectUri,
+      client_id: this.appId,
+      redirect_uri: this.redirectUri,
       scope: 'instagram_basic,instagram_content_publish',
       response_type: 'code',
     });
@@ -23,20 +34,17 @@ export class InstagramService {
   }
 
   async handleCallback(code: string, userId: string) {
-    const appId = process.env.INSTAGRAM_APP_ID;
-    const appSecret = process.env.INSTAGRAM_APP_SECRET;
-    const redirectUri = process.env.INSTAGRAM_REDIRECT_URI;
-    if (!appId || !appSecret || !redirectUri)
+    if (!this.appId || !this.appSecret || !this.redirectUri)
       throw new BadRequestException('Instagram no configurado');
 
     // Exchange code for short-lived token
     const tokenRes = await axios.post(
       'https://api.instagram.com/oauth/access_token',
       {
-        client_id: appId,
-        client_secret: appSecret,
+        client_id: this.appId,
+        client_secret: this.appSecret,
         grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
+        redirect_uri: this.redirectUri,
         code,
       },
       { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10_000 },
@@ -48,7 +56,7 @@ export class InstagramService {
 
     // Exchange for long-lived token (60 days)
     const longRes = await axios.get(
-      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortToken}`,
+      `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${this.appSecret}&access_token=${shortToken}`,
       { timeout: 10_000 },
     );
     const longToken: string | undefined = longRes.data?.access_token;
@@ -104,8 +112,7 @@ export class InstagramService {
     igUserId: string,
   ): Promise<string> {
     // Step 1: Create media container
-    const frontendUrl = process.env.FRONTEND_URL || 'https://cleo.skalex.pro';
-    const videoUrl = `${frontendUrl}/api/v1/media/${encodeURIComponent(videoPath)}`;
+    const videoUrl = `${this.frontendUrl}/api/v1/media/${encodeURIComponent(videoPath)}`;
 
     this.logger.log(`Creating IG container for ${videoPath}`);
     const containerRes = await axios.post(
