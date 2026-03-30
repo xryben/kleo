@@ -28,7 +28,7 @@ export class TikTokService {
       client_key: this.clientKey,
       response_type: 'code',
       scope: 'user.info.basic,video.publish,video.upload',
-      redirect_uri: redirectUri,
+      redirect_uri: this.redirectUri,
       state: userId,
     });
     return `https://www.tiktok.com/v2/auth/authorize/?${params}`;
