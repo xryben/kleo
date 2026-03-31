@@ -5,3 +5,9 @@ dist/
 .env.production
 *.log
 .DS_Store
+
+# Build artifacts
+frontend/.next/
+backend/.next/
+frontend/node_modules/
+backend/node_modules/

@@ -34,8 +34,9 @@ interface Project {
   createdAt: string;
 }
 
-const STEPS = ['DOWNLOADING', 'TRANSCRIBING', 'ANALYZING', 'CUTTING', 'READY'];
+const STEPS = ['PENDING', 'DOWNLOADING', 'TRANSCRIBING', 'ANALYZING', 'CUTTING', 'READY'];
 const STEP_LABELS: Record<string, string> = {
+  PENDING: 'En cola',
   DOWNLOADING: 'Descargando',
   TRANSCRIBING: 'Transcribiendo',
   ANALYZING: 'Analizando con IA',
@@ -68,10 +69,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     load();
   }, [auth.isLoading, auth.isAuthenticated, load]);
 
-  // Poll while processing
+  // Poll while processing (including PENDING)
   useEffect(() => {
     if (!project || project.status === 'READY' || project.status === 'FAILED') return;
-    const t = setInterval(load, 4000);
+    const t = setInterval(load, 3000);
     return () => clearInterval(t);
   }, [project, load]);
 
@@ -97,7 +98,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     );
   if (!project) return null;
 
-  const isProcessing = !['READY', 'FAILED', 'PENDING'].includes(project.status);
+  const isProcessing = !['READY', 'FAILED'].includes(project.status);
   const currentStep = STEPS.indexOf(project.status);
 
   return (
@@ -129,33 +130,47 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         {/* Progress bar */}
         {project.status !== 'FAILED' && (
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-5 mb-8">
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-4">
               {isProcessing && <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />}
               <span className="text-sm font-medium text-white">
                 {project.status === 'READY'
                   ? `✅ ${project.clips.length} clips generados`
                   : `⏳ ${STEP_LABELS[project.status] || project.status}...`}
               </span>
+              {isProcessing && (
+                <span className="ml-auto text-xs text-slate-500">
+                  Paso {Math.max(currentStep, 0) + 1} de {STEPS.length - 1}
+                </span>
+              )}
             </div>
-            <div className="flex gap-2">
-              {STEPS.slice(0, 5).map((step, i) => (
-                <div key={step} className="flex-1">
-                  <div
-                    className={`h-1.5 rounded-full transition-colors ${
-                      i < currentStep
-                        ? 'bg-purple-500'
-                        : i === currentStep
-                          ? 'bg-purple-400 animate-pulse'
-                          : 'bg-slate-700'
-                    }`}
-                  />
-                  <div
-                    className={`text-xs mt-1 ${i <= currentStep ? 'text-purple-400' : 'text-slate-600'}`}
-                  >
-                    {STEP_LABELS[step]}
+            {/* Barra de progreso continua */}
+            <div className="h-2 bg-slate-700 rounded-full overflow-hidden mb-4">
+              <div
+                className="h-full bg-purple-500 rounded-full transition-all duration-700"
+                style={{
+                  width:
+                    project.status === 'READY'
+                      ? '100%'
+                      : `${Math.max((currentStep / (STEPS.length - 1)) * 100, 5)}%`,
+                }}
+              />
+            </div>
+            {/* Steps */}
+            <div className="flex gap-1">
+              {STEPS.filter((s) => s !== 'READY').map((step, i) => {
+                const stepIdx = STEPS.indexOf(step);
+                const done = currentStep > stepIdx || project.status === 'READY';
+                const active = currentStep === stepIdx && isProcessing;
+                return (
+                  <div key={step} className="flex-1 text-center">
+                    <div
+                      className={`text-xs ${active ? 'text-purple-300 font-medium' : done ? 'text-purple-500' : 'text-slate-600'}`}
+                    >
+                      {done ? '✓' : active ? '●' : '○'} {STEP_LABELS[step]}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

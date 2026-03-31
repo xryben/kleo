@@ -1,42 +1,279 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getToken } from '@/lib/useAuth';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-function AnimatedCounter({ target, suffix = '' }: { target: string; suffix?: string }) {
-  const [visible, setVisible] = useState(false);
+gsap.registerPlugin(ScrollTrigger);
+
+/* ─── Animated counter that counts from 0 to target on scroll ─── */
+function AnimatedCounter({ target, label }: { target: string; label: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 300);
-    return () => clearTimeout(t);
-  }, []);
+    const el = ref.current;
+    if (!el) return;
+    // Parse the numeric part
+    const numericMatch = target.match(/[\d.]+/);
+    if (!numericMatch) {
+      el.textContent = target;
+      return;
+    }
+    const numVal = parseFloat(numericMatch[0]);
+    const prefix = target.slice(0, target.indexOf(numericMatch[0]));
+    const suffix = target.slice(target.indexOf(numericMatch[0]) + numericMatch[0].length);
+    const isFloat = numericMatch[0].includes('.');
+
+    const obj = { val: 0 };
+    const tween = gsap.to(obj, {
+      val: numVal,
+      duration: 2,
+      ease: 'power2.out',
+      scrollTrigger: {
+        trigger: el,
+        start: 'top 85%',
+        once: true,
+      },
+      onUpdate() {
+        el.textContent =
+          prefix + (isFloat ? obj.val.toFixed(1) : Math.round(obj.val).toString()) + suffix;
+      },
+    });
+
+    return () => {
+      tween.kill();
+    };
+  }, [target]);
+
   return (
-    <span
-      className={`transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
-    >
-      {target}
-      {suffix}
-    </span>
+    <div>
+      <div ref={ref} className="text-heading-1 md:text-display font-bold text-white">
+        {target}
+      </div>
+      <div className="text-body-sm text-content-secondary mt-1">{label}</div>
+    </div>
   );
+}
+
+/* ─── Cursor glow ─── */
+function useCursorGlow() {
+  const glowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const glow = glowRef.current;
+    if (!glow) return;
+    // Only on non-touch / non-reduced-motion
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mql.matches) return;
+    const isTouch = 'ontouchstart' in window;
+    if (isTouch) {
+      glow.style.display = 'none';
+      return;
+    }
+
+    const onMove = (e: MouseEvent) => {
+      gsap.to(glow, {
+        x: e.clientX,
+        y: e.clientY,
+        duration: 0.6,
+        ease: 'power2.out',
+      });
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  return glowRef;
 }
 
 export default function Home() {
   const router = useRouter();
   const [loaded, setLoaded] = useState(false);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const cursorGlow = useCursorGlow();
 
   useEffect(() => {
     if (getToken()) {
       router.replace('/dashboard');
-      return;
+    } else {
+      setLoaded(true);
     }
-    setLoaded(true);
   }, [router]);
 
-  if (!loaded) return null;
+  /* ─── GSAP master timeline ─── */
+  useEffect(() => {
+    if (!loaded || !mainRef.current) return;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) return; // Skip all animations for reduced-motion users
+
+    const ctx = gsap.context(() => {
+      /* ── Hero: stagger words ── */
+      const heroTitle = heroRef.current?.querySelector('.hero-title');
+      if (heroTitle) {
+        // Wrap each word in a span
+        const html = heroTitle.innerHTML;
+        // Split by words but preserve HTML tags (like <span>)
+        const parts = html.split(/(<[^>]+>.*?<\/[^>]+>)/g);
+        let wrapped = '';
+        parts.forEach((part) => {
+          if (part.startsWith('<')) {
+            // HTML tag — wrap entire element
+            wrapped += `<span class="hero-word inline-block">${part}</span> `;
+          } else {
+            // Plain text — wrap each word
+            part
+              .split(/\s+/)
+              .filter(Boolean)
+              .forEach((word) => {
+                wrapped += `<span class="hero-word inline-block">${word}</span> `;
+              });
+          }
+        });
+        heroTitle.innerHTML = wrapped;
+
+        gsap.from('.hero-word', {
+          opacity: 0,
+          y: 30,
+          rotateX: -40,
+          duration: 0.8,
+          stagger: 0.08,
+          ease: 'power3.out',
+          delay: 0.2,
+        });
+      }
+
+      /* ── Hero badge & subtitle fade in ── */
+      gsap.from('.hero-badge', {
+        opacity: 0,
+        y: -10,
+        duration: 0.6,
+        ease: 'power2.out',
+        delay: 0.1,
+      });
+
+      gsap.from('.hero-subtitle', {
+        opacity: 0,
+        y: 20,
+        duration: 0.8,
+        ease: 'power2.out',
+        delay: 0.7,
+      });
+
+      gsap.from('.hero-ctas', {
+        opacity: 0,
+        y: 20,
+        duration: 0.8,
+        ease: 'power2.out',
+        delay: 0.9,
+      });
+
+      /* ── How-it-works cards stagger on scroll ── */
+      gsap.from('.how-card', {
+        scrollTrigger: {
+          trigger: '.how-section',
+          start: 'top 75%',
+          once: true,
+        },
+        opacity: 0,
+        y: 60,
+        duration: 0.7,
+        stagger: 0.15,
+        ease: 'power3.out',
+      });
+
+      /* ── Section headings fade up on scroll ── */
+      gsap.utils.toArray<HTMLElement>('.scroll-fade-up').forEach((el) => {
+        gsap.from(el, {
+          scrollTrigger: {
+            trigger: el,
+            start: 'top 85%',
+            once: true,
+          },
+          opacity: 0,
+          y: 40,
+          duration: 0.7,
+          ease: 'power2.out',
+        });
+      });
+
+      /* ── Infoproductor mockup — parallax ── */
+      gsap.to('.parallax-infoproductor', {
+        scrollTrigger: {
+          trigger: '.section-infoproductor',
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1,
+        },
+        y: -50,
+        ease: 'none',
+      });
+
+      /* ── Clipper mockup — parallax ── */
+      gsap.to('.parallax-clipper', {
+        scrollTrigger: {
+          trigger: '.section-clipper',
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: 1,
+        },
+        y: -50,
+        ease: 'none',
+      });
+
+      /* ── Platforms section ── */
+      gsap.from('.platform-name', {
+        scrollTrigger: {
+          trigger: '.platforms-section',
+          start: 'top 80%',
+          once: true,
+        },
+        opacity: 0,
+        y: 20,
+        duration: 0.6,
+        stagger: 0.12,
+        ease: 'power2.out',
+      });
+
+      /* ── Final CTA ── */
+      gsap.from('.final-cta-content', {
+        scrollTrigger: {
+          trigger: '.final-cta',
+          start: 'top 80%',
+          once: true,
+        },
+        opacity: 0,
+        y: 40,
+        duration: 0.8,
+        ease: 'power2.out',
+      });
+    }, mainRef);
+
+    return () => ctx.revert();
+  }, [loaded]);
+
+  if (!loaded) return <div className="min-h-screen bg-surface-base" />;
 
   return (
-    <div className="min-h-screen bg-surface-base text-content-primary overflow-x-hidden">
+    <div
+      ref={mainRef}
+      className="min-h-screen bg-surface-base text-content-primary overflow-x-hidden"
+    >
+      {/* Cursor glow */}
+      <div
+        ref={cursorGlow}
+        className="pointer-events-none fixed top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] rounded-full z-[9999] opacity-20"
+        style={{
+          background:
+            'radial-gradient(circle, rgba(124,58,237,0.25) 0%, rgba(6,182,212,0.08) 40%, transparent 70%)',
+          filter: 'blur(40px)',
+        }}
+      />
+
       {/* Nav */}
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-surface-border-subtle bg-surface-base/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
@@ -62,36 +299,54 @@ export default function Home() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-24 px-6">
-        {/* Background glow effects */}
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-glow opacity-60 pointer-events-none" />
-        <div className="absolute top-40 right-[10%] w-[400px] h-[400px] rounded-full bg-accent/5 blur-[120px] pointer-events-none" />
+      <section ref={heroRef} className="relative pt-32 pb-24 px-6">
+        {/* Animated mesh gradient background */}
+        <div className="hero-mesh absolute inset-0 overflow-hidden pointer-events-none">
+          <div
+            className="absolute top-10 left-1/4 w-[600px] h-[600px] rounded-full opacity-30"
+            style={{
+              background: 'radial-gradient(circle, rgba(124,58,237,0.4) 0%, transparent 70%)',
+              animation: 'meshFloat1 8s ease-in-out infinite',
+            }}
+          />
+          <div
+            className="absolute top-40 right-[15%] w-[500px] h-[500px] rounded-full opacity-25"
+            style={{
+              background: 'radial-gradient(circle, rgba(6,182,212,0.3) 0%, transparent 70%)',
+              animation: 'meshFloat2 10s ease-in-out infinite',
+            }}
+          />
+          <div
+            className="absolute -bottom-20 left-[40%] w-[700px] h-[500px] rounded-full opacity-20"
+            style={{
+              background: 'radial-gradient(circle, rgba(168,85,247,0.3) 0%, transparent 70%)',
+              animation: 'meshFloat3 12s ease-in-out infinite',
+            }}
+          />
+        </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-surface-raised/80 border border-surface-border-subtle rounded-full px-4 py-1.5 mb-8 animate-fade-in">
+          <div className="hero-badge inline-flex items-center gap-2 bg-surface-raised/80 border border-surface-border-subtle rounded-full px-4 py-1.5 mb-8">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse-soft" />
             <span className="text-caption text-content-secondary">
               Plataforma activa — clippers ganando ahora mismo
             </span>
           </div>
 
-          <h1 className="text-display md:text-[4rem] md:leading-[1.05] font-bold text-white mb-6 animate-fade-up">
+          <h1
+            className="hero-title text-display md:text-[4rem] md:leading-[1.05] font-bold text-white mb-6"
+            style={{ perspective: '600px' }}
+          >
             Distribuye tus clips virales.{' '}
             <span className="text-gradient-primary">Gana dinero.</span>
           </h1>
 
-          <p
-            className="text-body-lg md:text-xl text-content-secondary max-w-2xl mx-auto mb-12 animate-fade-up"
-            style={{ animationDelay: '100ms' }}
-          >
+          <p className="hero-subtitle text-body-lg md:text-xl text-content-secondary max-w-2xl mx-auto mb-12">
             Kleo conecta a infoproductores con clippers que publican sus mejores clips en TikTok,
             Instagram y YouTube. Más alcance, más ventas, más ingresos.
           </p>
 
-          <div
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up"
-            style={{ animationDelay: '200ms' }}
-          >
+          <div className="hero-ctas flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/register?role=infoproductor"
               className="group w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gradient-primary hover:opacity-90 text-white font-semibold px-8 py-4 rounded-xl transition-all hover:shadow-glow text-base"
@@ -126,29 +381,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stats */}
+      {/* Stats — animated counters */}
       <section className="py-16 px-6 border-y border-surface-border-subtle">
         <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          {[
-            { value: '10K+', label: 'Clips distribuidos' },
-            { value: '500+', label: 'Clippers activos' },
-            { value: '3', label: 'Plataformas' },
-            { value: '24h', label: 'Primeros resultados' },
-          ].map((stat) => (
-            <div key={stat.label}>
-              <div className="text-heading-1 md:text-display font-bold text-white">
-                <AnimatedCounter target={stat.value} />
-              </div>
-              <div className="text-body-sm text-content-secondary mt-1">{stat.label}</div>
-            </div>
-          ))}
+          <AnimatedCounter target="10K+" label="Clips distribuidos" />
+          <AnimatedCounter target="500+" label="Clippers activos" />
+          <AnimatedCounter target="3" label="Plataformas" />
+          <AnimatedCounter target="24h" label="Primeros resultados" />
         </div>
       </section>
 
       {/* How it works */}
-      <section className="py-24 px-6">
+      <section className="how-section py-24 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-16 scroll-fade-up">
             <h2 className="text-heading-1 md:text-display font-bold text-white mb-4">
               ¿Cómo funciona?
             </h2>
@@ -228,7 +474,7 @@ export default function Home() {
             ].map((item) => (
               <div
                 key={item.step}
-                className="group relative glass rounded-2xl p-8 hover:border-primary/30 transition-all duration-300 hover:shadow-glow-sm"
+                className="how-card group relative glass rounded-2xl p-8 hover:border-primary/30 transition-all duration-300 hover:shadow-glow-sm"
               >
                 <div className="flex items-center gap-3 mb-5">
                   <div
@@ -249,11 +495,11 @@ export default function Home() {
       </section>
 
       {/* For Infoproductores */}
-      <section className="py-24 px-6 relative">
+      <section className="section-infoproductor py-24 px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/[0.03] to-transparent pointer-events-none" />
         <div className="relative max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
+            <div className="scroll-fade-up">
               <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-3 py-1 mb-6">
                 <span className="text-caption font-medium text-primary-400">
                   Para Infoproductores
@@ -308,8 +554,8 @@ export default function Home() {
               </Link>
             </div>
 
-            {/* Visual card mockup */}
-            <div className="relative">
+            {/* Visual card mockup — with parallax */}
+            <div className="parallax-infoproductor relative">
               <div className="glass rounded-2xl p-6 border-surface-border">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-heading-4 text-white">Campaña activa</h3>
@@ -337,7 +583,6 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              {/* Decorative glow behind card */}
               <div className="absolute -inset-4 bg-primary/10 rounded-3xl blur-2xl -z-10" />
             </div>
           </div>
@@ -345,12 +590,12 @@ export default function Home() {
       </section>
 
       {/* For Clippers */}
-      <section className="py-24 px-6 relative">
+      <section className="section-clipper py-24 px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-accent/[0.03] to-transparent pointer-events-none" />
         <div className="relative max-w-5xl mx-auto">
           <div className="grid md:grid-cols-2 gap-16 items-center">
-            {/* Visual card mockup - left side */}
-            <div className="relative order-2 md:order-1">
+            {/* Visual card mockup — with parallax */}
+            <div className="parallax-clipper relative order-2 md:order-1">
               <div className="glass rounded-2xl p-6 border-surface-border">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-heading-4 text-white">Tus ganancias</h3>
@@ -397,7 +642,7 @@ export default function Home() {
               <div className="absolute -inset-4 bg-accent/10 rounded-3xl blur-2xl -z-10" />
             </div>
 
-            <div className="order-1 md:order-2">
+            <div className="scroll-fade-up order-1 md:order-2">
               <div className="inline-flex items-center gap-2 bg-accent/10 border border-accent/20 rounded-full px-3 py-1 mb-6">
                 <span className="text-caption font-medium text-accent-400">Para Clippers</span>
               </div>
@@ -454,16 +699,16 @@ export default function Home() {
       </section>
 
       {/* Platforms */}
-      <section className="py-20 px-6 border-y border-surface-border-subtle">
+      <section className="platforms-section py-20 px-6 border-y border-surface-border-subtle">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-caption text-content-tertiary uppercase tracking-wider mb-8">
+          <p className="text-caption text-content-tertiary uppercase tracking-wider mb-8 scroll-fade-up">
             Distribuye en las plataformas que importan
           </p>
           <div className="flex items-center justify-center gap-12 md:gap-20 flex-wrap">
             {['TikTok', 'Instagram Reels', 'YouTube Shorts'].map((platform) => (
               <span
                 key={platform}
-                className="text-heading-2 font-semibold text-content-tertiary hover:text-white transition-colors cursor-default"
+                className="platform-name text-heading-2 font-semibold text-content-tertiary hover:text-white transition-colors cursor-default"
               >
                 {platform}
               </span>
@@ -473,9 +718,9 @@ export default function Home() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-24 px-6 relative">
+      <section className="final-cta py-24 px-6 relative">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-gradient-glow opacity-40 pointer-events-none" />
-        <div className="relative max-w-3xl mx-auto text-center">
+        <div className="final-cta-content relative max-w-3xl mx-auto text-center">
           <h2 className="text-heading-1 md:text-display font-bold text-white mb-6">
             ¿Listo para empezar?
           </h2>
